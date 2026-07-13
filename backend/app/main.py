@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 
-app = FastAPI()
+from app.api.router import router
 
+app = FastAPI(
+    title="GodsEye API",
+    version="1.0.0",
+)
 
-@app.get("/")
-def root():
-    return {
-        "message": "Welcome to GodsEye API"
-    }
+app.include_router(router)
