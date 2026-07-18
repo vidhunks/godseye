@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import requests
 import sys
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
@@ -316,14 +317,123 @@ def get_graph_data():
     return {"nodes": nodes, "edges": edges}
 
 
+def select_agent_preflight(prompt: str) -> Optional[str]:
+    groq_key = os.getenv("GROK_API_KEY") or os.getenv("GROQ_API_KEY")
+    openai_key = os.getenv("OPENAI_API_KEY")
+
+    if groq_key or openai_key:
+        system_prompt = (
+            "You are an intelligent agent router for the GodsEye platform.\n"
+            "Your job is to read a user request and select the most appropriate agent from the following list:\n"
+            "- \"Finance Agent\"\n"
+            "- \"HR Agent\"\n"
+            "- \"DevOps Agent\"\n\n"
+            "Respond with ONLY the name of the selected agent or \"None\"."
+        )
+        try:
+            if groq_key:
+                resp = requests.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
+                    json={"model": "llama-3.3-70b-versatile", "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}], "temperature": 0.0},
+                    timeout=5
+                )
+                if resp.status_code == 200:
+                    clean = resp.json()["choices"][0]["message"]["content"].replace('"', '').replace("'", "").strip()
+                    if clean in ["Finance Agent", "HR Agent", "DevOps Agent"]:
+                        return clean
+                else:
+                    err_msg = resp.json().get('error', {}).get('message', resp.text)
+                    print(f"[LLM Router] Groq API error {resp.status_code}: {err_msg}")
+            elif openai_key:
+                resp = requests.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {openai_key}", "Content-Type": "application/json"},
+                    json={"model": "gpt-4o-mini", "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}], "temperature": 0.0},
+                    timeout=5
+                )
+                if resp.status_code == 200:
+                    clean = resp.json()["choices"][0]["message"]["content"].replace('"', '').replace("'", "").strip()
+                    if clean in ["Finance Agent", "HR Agent", "DevOps Agent"]:
+                        return clean
+        except Exception:
+            pass
+
+    # Keyword fallback
+    request = prompt.lower()
+    if any(word in request for word in ["finance", "budget", "invoice", "report"]):
+        return "Finance Agent"
+    if any(word in request for word in ["employee", "leave", "salary", "hr"]):
+        return "HR Agent"
+    if any(word in request for word in ["server", "docker", "deployment", "cpu", "shell", "restart", "deploy", "log"]):
+        return "DevOps Agent"
+    return None
+
+
 @router.post("/run-agent")
 def run_agent(payload: RunAgentPayload):
     """
     Spawns Brain Agent CLI, feeds the prompt, and returns the output.
+    Before executing, performs a pre-flight HIGH risk check against the governance
+    graph. If the routed agent (or any agent it orchestrates) reaches a HIGH risk
+    server, execution is blocked immediately and no subprocess is spawned.
     """
+    # 1. Resolve agent beforehand
+    agent_name = select_agent_preflight(payload.prompt)
+    if not agent_name:
+        agent_name = "Brain Agent"
+
+    # ---------------------------------------------------------------
+    # PRE-FLIGHT RISK CHECK
+    # Query Neo4j for any HIGH risk servers in the selected agent's path
+    # ---------------------------------------------------------------
+    risk_check_cypher = """
+    MATCH (a:Agent {name: $agent_name})-[:USES|ORCHESTRATES*0..4]->(p:Proxy)-[:CONNECTS_TO]->(m:MCPServer)-[:HAS_RISK]->(r:RiskAssessment)
+    WHERE r.level = "HIGH"
+    RETURN DISTINCT m.name AS server, r.score AS score
+    """
+    high_risk_servers = []
+    try:
+        with neo4j.driver.session() as session:
+            result = session.run(risk_check_cypher, agent_name=agent_name)
+            for record in result:
+                high_risk_servers.append({
+                    "server": record["server"],
+                    "score": record["score"],
+                })
+    except Exception as e:
+        # If DB is not reachable, log but don't block execution
+        print(f"Risk pre-check DB query failed (non-blocking): {e}")
+
+    if high_risk_servers:
+        return {
+            "status": "blocked",
+            "stdout": (
+                f"⛔ TASK NOT EXECUTED — HIGH RISK SERVER DETECTED\n\n"
+                f"GodsEye Policy Engine has blocked this task before execution.\n\n"
+                f"Reason: The target agent ({agent_name}) requires access to high-risk servers:\n"
+                + "\n".join(
+                    f"  • {s['server']}  [Risk Score: {s['score']}/100]"
+                    for s in high_risk_servers
+                )
+                + "\n\n"
+                f"Action Required: Remediate the server(s) listed above and re-run "
+                f"the compliance scan before retrying task execution.\n"
+            ),
+            "stderr": "",
+            "blocked_servers": high_risk_servers,
+        }
+
+    # ---------------------------------------------------------------
+    # EXECUTION — only reached if all servers are LOW/MEDIUM risk
+    # ---------------------------------------------------------------
     brain_agent_dir = os.path.abspath("../sample_agents/brain_agent")
 
     cmd = [sys.executable, "main.py"]
+
+    # Pass pre-selected agent to subprocess env to prevent duplicate token usage
+    env = os.environ.copy()
+    env["PRE_SELECTED_AGENT"] = agent_name
 
     try:
         proc = subprocess.Popen(
@@ -332,6 +442,7 @@ def run_agent(payload: RunAgentPayload):
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            env=env,
             text=True,
         )
 
@@ -356,29 +467,111 @@ def run_agent(payload: RunAgentPayload):
         )
 
 
+
 @router.get("/opa-policy")
 def generate_opa_policy():
     """
-    Generate an OPA Rego policy stub that blocks access to flagged high-risk servers.
+    Generate an OPA Rego policy stub using an LLM.
+    If no LLM key is configured, fallback to generating the static risk-based Rego policy.
     """
-    cypher = """
-    MATCH (m:MCPServer)-[:HAS_RISK]->(r:RiskAssessment {level: "HIGH"})
-    RETURN m.name AS server
-    """
+    # 1. Fetch server inventory data
+    try:
+        servers = get_server_inventory()
+    except Exception as e:
+        print(f"Failed to fetch server inventory for OPA generation: {e}")
+        servers = []
 
-    with neo4j.driver.session() as session:
-        result = session.run(cypher)
-        high_risk_servers = [r["server"] for r in result]
+    # 2. Prepare LLM prompt
+    server_data_json = json.dumps(servers, indent=2)
 
-    # Handle defaults
-    if not high_risk_servers:
-        server_checks = '  server == "None"'
-    else:
-        server_checks = "\n".join(
-            f'  server == "{s}"' for s in high_risk_servers
-        )
+    system_prompt = (
+        "You are an expert security policy architect specializing in Open Policy Agent (OPA).\n"
+        "You will be given a list of MCP (Model Context Protocol) servers, their risk levels/scores, and exposed tools.\n"
+        "Generate a valid OPA Rego policy document in the package `mcp.authz` that enforces network and tool compliance.\n\n"
+        "The Rego policy must satisfy these requirements:\n"
+        "1. Define a default deny rule: `default allow = false`.\n"
+        "2. Allow tool execution if the server is NOT high risk, OR write conditional rules for specific roles/tools.\n"
+        "3. Explicitly define a helper rule or list `is_high_risk_server` containing all high-risk servers.\n"
+        "4. Include custom rule logic restricting high-impact categories (like 'DELETE', 'EXECUTE', 'WRITE') or high-risk tools based on the user's role (e.g. restrict to 'ADMIN' or 'MANAGER').\n"
+        "5. ONLY return the plain Rego code itself. Do not wrap it in markdown code blocks like ```rego or include any extra text or explanations. Start immediately with the package statement."
+    )
 
-    rego_stub = f"""package mcp.authz
+    prompt = f"Input Server Inventory:\n{server_data_json}"
+
+    rego_stub = ""
+    groq_key = os.getenv("GROK_API_KEY") or os.getenv("GROQ_API_KEY")
+    openai_key = os.getenv("OPENAI_API_KEY")
+
+    if groq_key or openai_key:
+        print("[LLM OPA Generator] Calling LLM to generate Rego policy...")
+        try:
+            if groq_key:
+                url = "https://api.groq.com/openai/v1/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {groq_key}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "temperature": 0.1
+                }
+                resp = requests.post(url, json=payload, headers=headers, timeout=12)
+                if resp.status_code == 200:
+                    rego_stub = resp.json()["choices"][0]["message"]["content"].strip()
+                else:
+                    err_msg = resp.json().get('error', {}).get('message', resp.text)
+                    print(f"[LLM OPA Generator] Groq API error {resp.status_code}: {err_msg}")
+            elif openai_key:
+                url = "https://api.openai.com/v1/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {openai_key}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "model": "gpt-4o-mini",
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "temperature": 0.1
+                }
+                resp = requests.post(url, json=payload, headers=headers, timeout=12)
+                if resp.status_code == 200:
+                    rego_stub = resp.json()["choices"][0]["message"]["content"].strip()
+                else:
+                    err_msg = resp.json().get('error', {}).get('message', resp.text)
+                    print(f"[LLM OPA Generator] OpenAI API error {resp.status_code}: {err_msg}")
+        except Exception as e:
+            print(f"[LLM OPA Generator] LLM API call failed: {e}")
+
+    # Remove markdown code block wrapping if the LLM returned it anyway
+    if rego_stub.startswith("```"):
+        lines = rego_stub.split("\n")
+        filtered_lines = [l for l in lines if not l.strip().startswith("```")]
+        rego_stub = "\n".join(filtered_lines).strip()
+
+    # Extract high-risk servers for response metadata
+    high_risk_servers = [srv["server_name"] for srv in servers if srv.get("risk_level") == "HIGH"]
+
+    # 3. Fallback to static rule-based policy if LLM generation was not used or failed
+    if not rego_stub:
+        if grok_key or openai_key:
+            print("[LLM OPA Generator] LLM policy generation failed. Falling back to rule-based...")
+        else:
+            print("[LLM OPA Generator (Rule-based Fallback)] No API key found. Using static generator...")
+
+        if not high_risk_servers:
+            server_checks = '  server == "None"'
+        else:
+            server_checks = "\n".join(
+                f'  server == "{s}"' for s in high_risk_servers
+            )
+
+        rego_stub = f"""package mcp.authz
 
 # By default, deny access
 default allow = false
@@ -424,3 +617,68 @@ def get_risk_cards():
                 "recommendations": r["recommendations"] or [],
             })
         return cards
+
+
+@router.get("/server-inventory")
+def get_server_inventory():
+    """
+    Returns full metadata for every discovered MCP server along with
+    all tools it exposes, their categories, permissions, risk tags, and
+    the data sources each tool accesses.
+    """
+    cypher = """
+    MATCH (m:MCPServer)
+    OPTIONAL MATCH (m)-[:HAS_RISK]->(r:RiskAssessment)
+    OPTIONAL MATCH (m)-[:EXPOSES]->(t:Tool)
+    OPTIONAL MATCH (t)-[:ACCESSES]->(d:DataSource)
+    RETURN
+        m.name            AS server_name,
+        m.version         AS version,
+        m.department      AS department,
+        m.owner           AS owner,
+        m.environment     AS environment,
+        m.transport       AS transport,
+        m.auth_required   AS auth_required,
+        m.auth_type       AS auth_type,
+        m.public_exposed  AS public_exposed,
+        m.tls_enabled     AS tls_enabled,
+        m.audit_enabled   AS audit_enabled,
+        r.level           AS risk_level,
+        r.score           AS risk_score,
+        collect(DISTINCT {
+            name:        t.name,
+            category:    t.category,
+            permission:  t.permission,
+            risk:        t.risk,
+            resource:    t.resource,
+            description: t.description,
+            datasource:  d.name
+        }) AS tools
+    ORDER BY m.name
+    """
+    with neo4j.driver.session() as session:
+        result = session.run(cypher)
+        servers = []
+        for r in result:
+            # Filter out null tool entries (server with no tools)
+            tools = [
+                t for t in (r["tools"] or [])
+                if t.get("name") is not None
+            ]
+            servers.append({
+                "server_name":   r["server_name"],
+                "version":       r["version"] or "—",
+                "department":    r["department"] or "—",
+                "owner":         r["owner"] or "Unknown",
+                "environment":   r["environment"] or "—",
+                "transport":     r["transport"] or "stdio",
+                "auth_required": r["auth_required"],
+                "auth_type":     r["auth_type"] or "none",
+                "public_exposed":r["public_exposed"],
+                "tls_enabled":   r["tls_enabled"],
+                "audit_enabled": r["audit_enabled"],
+                "risk_level":    r["risk_level"] or "UNSCANNED",
+                "risk_score":    r["risk_score"] if r["risk_score"] is not None else "—",
+                "tools":         tools,
+            })
+        return servers

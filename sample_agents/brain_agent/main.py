@@ -11,14 +11,17 @@ async def main():
 
     request = input("User Request : ")
 
-    router = AgentRouter()
-
-    selected_agent = router.select_agent(request)
+    # Check if the gateway already selected an agent during the pre-flight phase
+    import os
+    selected_agent = os.getenv("PRE_SELECTED_AGENT")
+    if selected_agent and selected_agent != "Brain Agent":
+        print(f"[Brain Agent] Using pre-selected agent from gateway: {selected_agent}")
+    else:
+        router = AgentRouter()
+        selected_agent = router.select_agent(request)
 
     if selected_agent is None:
-
         print("No suitable agent.")
-
         return
 
     print(f"\nBrain Agent selected : {selected_agent}")

@@ -3,24 +3,14 @@ import {
   Shield,
   Activity,
   Database,
-  Search,
-  BookOpen,
   Network,
-  Download,
   AlertTriangle,
   Play,
-  FileCode,
-  User,
   Cpu,
-  Layers,
-  Sparkles,
   CheckCircle,
-  HelpCircle,
-  MessageSquare,
   Terminal,
   RefreshCw,
-  ArrowLeft,
-  Server
+  ArrowLeft
 } from 'lucide-react'
 
 const API_BASE = '/api'
@@ -29,11 +19,13 @@ declare const vis: any;
 
 export default function App() {
   const [currentView, setCurrentView] = useState<'console' | 'graph'>('console')
-  const [activeSubTab, setActiveSubTab] = useState<'compliance' | 'policy' | 'opa'>('compliance')
+  const [activeSubTab, setActiveSubTab] = useState<'compliance' | 'policy' | 'opa' | 'inventory'>('compliance')
+  const [serverInventory, setServerInventory] = useState<any[]>([])
+  const [expandedServer, setExpandedServer] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
-  const [dbHealthy, setDbHealthy] = useState<boolean | null>(null)
+  const [, setDbHealthy] = useState<boolean | null>(null)
 
   // OPA and Risk Assessment Fleet states
   const [opaPolicy, setOpaPolicy] = useState('')
@@ -41,9 +33,10 @@ export default function App() {
 
   // Console execution states
   const [promptInput, setPromptInput] = useState('Run DevOps deploy and restart logs command')
-  const [selectedAgent, setSelectedAgent] = useState('Brain Agent')
+  const [selectedAgent, _setSelectedAgent] = useState('Brain Agent')
   const [executionOutput, setExecutionOutput] = useState('')
   const [executing, setExecuting] = useState(false)
+  const [isBlocked, setIsBlocked] = useState(false)
 
   // Compliance query states
   const [orphanAgents, setOrphanAgents] = useState<string[]>([])
@@ -426,6 +419,18 @@ export default function App() {
     }
   }
 
+  const fetchServerInventory = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/governance/server-inventory`)
+      if (res.ok) {
+        const data = await res.json()
+        setServerInventory(data || [])
+      }
+    } catch (e) {
+      console.error('Failed to fetch server inventory:', e)
+    }
+  }
+
   const triggerComplianceScan = async () => {
     setLoading(true)
     setSuccessMsg('')
@@ -435,6 +440,7 @@ export default function App() {
       if (res.ok) {
         setSuccessMsg('Compliance Network Scan Completed. Risk scores successfully updated!')
         fetchQueries()
+        fetchServerInventory()
       } else {
         setErrorMsg('Network scan failed.')
       }
@@ -470,6 +476,7 @@ export default function App() {
 
   const executeAgentTask = async () => {
     setExecuting(true)
+    setIsBlocked(false)
     setExecutionOutput('Executing task prompt through gateway...\n')
     try {
       const res = await fetch(`${API_BASE}/governance/run-agent`, {
@@ -482,12 +489,20 @@ export default function App() {
       })
       if (res.ok) {
         const data = await res.json()
-        setExecutionOutput(data.stdout || data.stderr || 'No response logs.')
-        fetchQueries()
+        if (data.status === 'blocked') {
+          setIsBlocked(true)
+          setExecutionOutput(data.stdout || 'Task blocked by GodsEye Policy Engine.')
+        } else {
+          setIsBlocked(false)
+          setExecutionOutput(data.stdout || data.stderr || 'No response logs.')
+          fetchQueries()
+        }
       } else {
+        setIsBlocked(false)
         setExecutionOutput('Execution failed. Interception active.')
       }
     } catch {
+      setIsBlocked(false)
       setExecutionOutput('Failed to execute command.')
     } finally {
       setExecuting(false)
@@ -751,15 +766,19 @@ export default function App() {
                 <pre style={{
                   margin: 0,
                   padding: '16px',
-                  backgroundColor: '#121314',
-                  border: '1px solid var(--border-color)',
+                  backgroundColor: isBlocked ? 'rgba(255, 71, 87, 0.08)' : '#121314',
+                  border: `1px solid ${isBlocked ? '#ff4757' : 'var(--border-color)'}`,
                   borderRadius: '6px',
-                  color: '#e0e2e5',
+                  borderLeft: isBlocked ? '4px solid #ff4757' : '1px solid var(--border-color)',
+                  color: isBlocked ? '#ff6b81' : '#e0e2e5',
                   fontSize: '0.85rem',
                   fontFamily: 'monospace',
                   overflowX: 'auto',
-                  maxHeight: '220px'
+                  maxHeight: '260px',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word'
                 }}>
+                  {isBlocked && <span style={{ color: '#ff4757', fontWeight: 700, display: 'block', marginBottom: '8px' }}>⛔ POLICY VIOLATION — EXECUTION BLOCKED</span>}
                   <code>{executionOutput}</code>
                 </pre>
               )}
@@ -815,7 +834,147 @@ export default function App() {
               >
                 OPA Policy Generator
               </button>
+              <button 
+                onClick={() => {
+                  setActiveSubTab('inventory');
+                  fetchServerInventory();
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '10px 16px',
+                  color: activeSubTab === 'inventory' ? 'var(--accent-orange)' : 'var(--text-secondary)',
+                  borderBottom: activeSubTab === 'inventory' ? '2px solid var(--accent-orange)' : 'none',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer'
+                }}
+              >
+                🗄️ Server Inventory
+              </button>
             </div>
+
+            {/* Server Inventory view */}
+            {activeSubTab === 'inventory' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h5 style={{ fontSize: '1.1rem', color: 'var(--text-primary)', fontWeight: 600, margin: 0 }}>MCP Server Inventory</h5>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Full metadata and tool catalog for every discovered server. Populated after network scan.</p>
+                  </div>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.04)', padding: '4px 10px', borderRadius: '999px', border: '1px solid var(--border-color)' }}>
+                    {serverInventory.length} server{serverInventory.length !== 1 ? 's' : ''} discovered
+                  </span>
+                </div>
+
+                {serverInventory.length === 0 ? (
+                  <div className="gradient-border" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                    No servers discovered yet. Click <strong style={{ color: 'var(--accent-orange)' }}>Scan Network</strong> to populate the inventory.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {serverInventory.map((srv, i) => {
+                      const isExpanded = expandedServer === srv.server_name
+                      const riskColor = srv.risk_level === 'HIGH' ? '#ff4757' : srv.risk_level === 'MEDIUM' ? '#ffa502' : srv.risk_level === 'LOW' ? '#2ed573' : '#57606f'
+                      return (
+                        <div key={i} className="gradient-border" style={{
+                          borderLeft: `4px solid ${riskColor}`,
+                          background: 'rgba(255,255,255,0.01)',
+                          borderRadius: '8px',
+                          overflow: 'hidden'
+                        }}>
+                          {/* Server Header Row */}
+                          <div
+                            onClick={() => setExpandedServer(isExpanded ? null : srv.server_name)}
+                            style={{ padding: '16px 20px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: riskColor, boxShadow: `0 0 8px ${riskColor}` }} />
+                              <div>
+                                <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{srv.server_name}</span>
+                                <span style={{ marginLeft: '10px', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>v{srv.version} · {srv.department} · {srv.environment}</span>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '3px 10px', borderRadius: '999px', background: `${riskColor}22`, color: riskColor, border: `1px solid ${riskColor}44` }}>
+                                {srv.risk_level} {srv.risk_score !== '—' ? `· ${srv.risk_score}/100` : ''}
+                              </span>
+                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{isExpanded ? '▲' : '▼'}</span>
+                            </div>
+                          </div>
+
+                          {/* Expanded Details */}
+                          {isExpanded && (
+                            <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                              {/* Metadata Grid */}
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', paddingTop: '4px' }}>
+                                {[
+                                  { label: 'Owner', value: srv.owner },
+                                  { label: 'Transport', value: srv.transport },
+                                  { label: 'Auth Type', value: srv.auth_type },
+                                  { label: 'Auth Required', value: srv.auth_required ? '✅ Yes' : '❌ No' },
+                                  { label: 'TLS Enabled', value: srv.tls_enabled ? '✅ Yes' : '❌ No' },
+                                  { label: 'Audit Logging', value: srv.audit_enabled ? '✅ Yes' : '❌ No' },
+                                  { label: 'Publicly Exposed', value: srv.public_exposed ? '⚠️ Yes' : '✅ No' },
+                                ].map((item, j) => (
+                                  <div key={j} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '6px', padding: '10px 12px', border: '1px solid var(--border-color)' }}>
+                                    <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>{item.label}</div>
+                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600 }}>{item.value}</div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Tools Table */}
+                              <div>
+                                <h6 style={{ fontSize: '0.85rem', color: 'var(--accent-orange)', fontWeight: 700, margin: '0 0 10px 0', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                  🔧 Exposed Tools ({srv.tools.length})
+                                </h6>
+                                {srv.tools.length === 0 ? (
+                                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>No tools exposed by this server.</p>
+                                ) : (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {srv.tools.map((tool: any, k: number) => {
+                                      const toolRiskColor = tool.risk === 'HIGH' ? '#ff4757' : tool.risk === 'MEDIUM' ? '#ffa502' : '#2ed573'
+                                      return (
+                                        <div key={k} style={{
+                                          display: 'grid',
+                                          gridTemplateColumns: '1fr auto auto auto',
+                                          alignItems: 'center',
+                                          gap: '12px',
+                                          padding: '10px 14px',
+                                          background: 'rgba(255,255,255,0.02)',
+                                          border: '1px solid var(--border-color)',
+                                          borderRadius: '6px'
+                                        }}>
+                                          <div>
+                                            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{tool.name}</div>
+                                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>{tool.description || '—'}</div>
+                                            {tool.datasource && <div style={{ fontSize: '0.7rem', color: '#ff9f43', marginTop: '3px' }}>📦 {tool.datasource}</div>}
+                                          </div>
+                                          <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '999px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
+                                            {tool.category || '—'}
+                                          </span>
+                                          <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '999px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
+                                            {tool.permission || '—'}
+                                          </span>
+                                          <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '999px', background: `${toolRiskColor}22`, color: toolRiskColor, border: `1px solid ${toolRiskColor}44`, whiteSpace: 'nowrap', fontWeight: 700 }}>
+                                            {tool.risk || '—'}
+                                          </span>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Compliance view */}
             {activeSubTab === 'compliance' && (
@@ -876,7 +1035,7 @@ export default function App() {
                               </p>
                             ) : (
                               <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px', fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                {card.findings.map((f, idx) => (
+                                {card.findings.map((f: string, idx: number) => (
                                   <li key={idx}>{f}</li>
                                 ))}
                               </ul>
@@ -893,7 +1052,7 @@ export default function App() {
                               </p>
                             ) : (
                               <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px', fontSize: '0.75rem', color: 'var(--accent-green)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                {card.recommendations.map((rec, idx) => (
+                                {card.recommendations.map((rec: string, idx: number) => (
                                   <li key={idx}>{rec}</li>
                                 ))}
                               </ul>
