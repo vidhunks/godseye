@@ -17,17 +17,21 @@ def scan(uri: str):
 
     risk = risk_engine.evaluate(result)
 
-    neo4j_service.create_mcp_server(
-        uri=result.uri,
-        auth_required=result.authentication_required,
-        public_exposed=result.publicly_reachable,
-    )
+    # Save rich server metadata to Neo4j
+    neo4j_service.create_mcp_server(result.server)
 
+    # Save each tool's detail
     for tool in result.tools:
         neo4j_service.create_tool(
             server_uri=result.uri,
-            tool_name=tool,
+            tool=tool,
         )
+
+    # Save risk assessment
+    neo4j_service.create_risk_assessment(
+        server_uri=result.uri,
+        risk=risk,
+    )
 
     return {
         "scan": result,

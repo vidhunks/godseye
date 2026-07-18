@@ -1,0 +1,14 @@
+{
+  "agent_name": "Finance Agent",
+  "model": "gpt-4",
+  "mcpServers": [
+    {
+      "name": "Finance MCP",
+      "transport": "stdio",
+      "command": "python",
+      "args": [
+        "../mcp_servers/finance_server/server.py"
+      ]
+    }
+  ]
+}

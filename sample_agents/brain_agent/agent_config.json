@@ -1,0 +1,9 @@
+{
+    "agent_name": "Brain Agent",
+    "model": "gpt-4o",
+    "managed_agents": [
+        "finance_agent",
+        "hr_agent",
+        "devops_agent"
+    ]
+}

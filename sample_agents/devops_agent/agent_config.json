@@ -1,0 +1,14 @@
+{
+  "agent_name": "DevOps Agent",
+  "model": "gpt-4",
+  "mcpServers": [
+    {
+      "name": "DevOps MCP",
+      "transport": "stdio",
+      "command": "python",
+      "args": [
+        "../../mcp_servers/devops_server/server.py"
+      ]
+    }
+  ]
+}

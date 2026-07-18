@@ -1,6 +1,6 @@
-# ----------------------------
+﻿# ============================
 # Python
-# ----------------------------
+# ============================
 __pycache__/
 *.py[cod]
 *.pyo
@@ -9,34 +9,84 @@ __pycache__/
 .venv/
 venv/
 env/
-
-# Environment Variables
-.env
-
-# Logs
-*.log
-
-# IDE
-.vscode/
-.idea/
-
-# macOS
-.DS_Store
-
-# Node
-node_modules/
-
-# Build
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+*.egg-info/
+*.egg
 dist/
 build/
+.eggs/
 
-# Coverage
+# ============================
+# Environment & Secrets
+# ============================
+.env
+.env.local
+.env.*.local
+*.secret
+secrets/
+
+# ============================
+# Logs
+# ============================
+*.log
+logs/
+
+# ============================
+# Node / Frontend
+# ============================
+node_modules/
+frontend/dist/
+frontend/.vite/
+.npm
+
+# ============================
+# IDE & Editors
+# ============================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.orig
+.project
+.classpath
+
+# ============================
+# OS
+# ============================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================
+# Test / Coverage
+# ============================
 .coverage
 htmlcov/
+.pytest_cache/
+.mypy_cache/
+*.coverage.*
 
-# Neo4j
+# ============================
+# Neo4j (if running locally)
+# ============================
 neo4j/data/
 neo4j/logs/
+neo4j/run/
+neo4j/certificates/
+neo4j/import/
 
+# ============================
 # Docker
-*.pidsss
+# ============================
+*.pid
+
+# ============================
+# Temp / Scratch
+# ============================
+all-files.txt
+files-list.txt
+try.md
+*.tmp
+*.bak

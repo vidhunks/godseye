@@ -1,0 +1,103 @@
+:root {
+  --bg-primary: #121314;
+  --bg-secondary: #1a1c1d;
+  --bg-card: rgba(28, 30, 31, 0.65);
+  --border-color: rgba(255, 255, 255, 0.06);
+  --border-glow: rgba(245, 124, 0, 0.25);
+  --text-primary: #e0e2e5;
+  --text-secondary: #8c9099;
+  
+  /* Subtle Orange & Ash Gray Color Palette */
+  --accent-cyan: #ff9f43;      /* Primary orange */
+  --accent-blue: #e67e22;      /* Medium orange */
+  --accent-red: #ff4757;       /* Soft red alert */
+  --accent-green: #2ed573;     /* Safe green */
+  --accent-orange: #ff9f43;    
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-glow);
+}
+
+.glow-text {
+  text-shadow: 0 0 10px rgba(245, 124, 0, 0.4);
+}
+
+.gradient-border {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--glass-shadow);
+  transition: var(--transition-smooth);
+}
+
+.gradient-border:hover {
+  border-color: rgba(245, 124, 0, 0.25);
+  box-shadow: 0 8px 32px 0 rgba(245, 124, 0, 0.08);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-low {
+  background-color: rgba(46, 213, 115, 0.1);
+  color: var(--accent-green);
+  border: 1px solid rgba(46, 213, 115, 0.2);
+}
+
+.badge-medium {
+  background-color: rgba(245, 124, 0, 0.1);
+  color: var(--accent-orange);
+  border: 1px solid rgba(245, 124, 0, 0.2);
+}
+
+.badge-high {
+  background-color: rgba(255, 71, 87, 0.1);
+  color: var(--accent-red);
+  border: 1px solid rgba(255, 71, 87, 0.2);
+}

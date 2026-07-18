@@ -1,0 +1,14 @@
+{
+  "agent_name": "HR Agent",
+  "model": "gpt-4",
+  "mcpServers": [
+    {
+      "name": "HR MCP",
+      "transport": "stdio",
+      "command": "python",
+      "args": [
+        "../../mcp_servers/hr_server/server.py"
+      ]
+    }
+  ]
+}
