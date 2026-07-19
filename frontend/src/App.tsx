@@ -1350,116 +1350,147 @@ export default function App() {
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px' }}>
-              
-              {/* Visualizer network */}
-              <div className="gradient-border" style={{ position: 'relative' }}>
-                <div style={{ position: 'absolute', top: '16px', left: '16px', zIndex: 10, display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <h4 style={{ fontSize: '1.1rem', color: 'var(--accent-orange)' }}>Ecosystem Topology Visualizer</h4>
-                  <button 
-                    onClick={loadGraphData}
-                    style={{
-                      background: 'rgba(255,255,255,0.03)',
-                      border: '1px solid var(--border-color)',
-                      color: 'var(--text-primary)',
-                      padding: '4px 10px',
-                      fontSize: '0.75rem',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    <RefreshCw size={12} /> Reload
-                  </button>
-                </div>
-                <div 
-                  ref={containerRef} 
-                  style={{ height: '550px', width: '100%', borderRadius: '12px' }} 
-                />
+            <div style={{ position: 'relative', height: '780px', width: '100%', overflow: 'hidden' }} className="gradient-border">
+              {/* Visualizer Network element */}
+              <div 
+                ref={containerRef} 
+                style={{ height: '100%', width: '100%', borderRadius: '14px' }} 
+              />
+
+              {/* Floating Header Controls */}
+              <div style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, display: 'flex', gap: '12px', alignItems: 'center', background: 'rgba(13,15,16,0.85)', backdropFilter: 'blur(20px)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '10px 16px' }}>
+                <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--accent-orange)' }}>Ecosystem Topology Visualizer</h4>
+                <button 
+                  onClick={loadGraphData}
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-primary)',
+                    padding: '5px 12px',
+                    fontSize: '0.75rem',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'var(--transition-smooth)'
+                  }}
+                  className="btn-ghost"
+                >
+                  <RefreshCw size={12} /> Reload Graph
+                </button>
               </div>
 
-              {/* Sidebar Inspector */}
-              <div className="gradient-border" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', maxHeight: '550px', overflowY: 'auto' }}>
-                <h4 style={{ fontSize: '1.1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', color: 'var(--text-primary)' }}>
+              {/* Floating Legend */}
+              <div style={{ position: 'absolute', bottom: '20px', left: '20px', zIndex: 10, background: 'rgba(13,15,16,0.85)', backdropFilter: 'blur(20px)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '2px' }}>Graph Legend</div>
+                <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '0.72rem' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#e67e22' }}><strong style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#e67e22' }}></strong> Orchestrator</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#2980b9' }}><strong style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#2980b9' }}></strong> Sub-Agent</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#00d2d3' }}><strong style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#00d2d3' }}></strong> Proxy Interceptor</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#ff4757' }}><strong style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#ff4757' }}></strong> High Risk Server</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#2ed573' }}><strong style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#2ed573' }}></strong> Low Risk Server</span>
+                </div>
+              </div>
+
+              {/* Floating Sidebar Inspector Card */}
+              <div style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                bottom: '20px',
+                width: '330px',
+                zIndex: 10,
+                background: 'rgba(13,15,16,0.85)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '12px',
+                padding: '20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                overflowY: 'auto',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+              }}>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', color: 'var(--text-primary)', margin: 0 }}>
                   Component Inspector
                 </h4>
 
                 {!selectedNode ? (
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'center', margin: '60px 0' }}>
-                    Select a node inside the map to audit node configuration details.
-                  </p>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '40px 10px' }}>
+                    Select a node inside the map to audit configuration and connection parameters.
+                  </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', animation: 'fadeUp 0.2s ease forwards' }}>
                     <div>
-                      <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Type label</span>
-                      <h5 style={{ fontSize: '1.1rem', color: 'var(--accent-orange)' }}>{selectedNode.type}</h5>
+                      <span style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>Type Label</span>
+                      <h5 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--accent-orange)', margin: '2px 0 0 0' }}>{selectedNode.type}</h5>
                     </div>
 
                     <div>
-                      <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Friendly Name</span>
-                      <p style={{ fontSize: '0.9rem', fontWeight: 600 }}>{selectedNode.name}</p>
+                      <span style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>Friendly Name</span>
+                      <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)', margin: '2px 0 0 0' }}>{selectedNode.name}</p>
                     </div>
 
                     {selectedNode.type === 'MCPServer' && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         <div>
-                          <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Department Owner</span>
-                          <p style={{ fontSize: '0.85rem' }}>{selectedNode.properties.owner || '—'}</p>
+                          <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>Department Owner</span>
+                          <p style={{ fontSize: '0.82rem', margin: '2px 0 0 0' }}>{selectedNode.properties.owner || '—'}</p>
                         </div>
                         <div>
-                          <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Dynamic Risk Rating</span>
+                          <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>Dynamic Risk Rating</span>
                           <p style={{ 
-                            fontSize: '0.95rem', 
+                            fontSize: '0.9rem', 
                             fontWeight: 700, 
+                            margin: '2px 0 0 0',
                             color: selectedNode.properties.risk_level === 'HIGH' ? 'var(--accent-red)' : 
                                    selectedNode.properties.risk_level ? 'var(--accent-green)' : 'var(--text-secondary)' 
                           }}>
-                            {selectedNode.properties.risk_level === 'HIGH' ? '85 (HIGH RISK)' : 
-                             selectedNode.properties.risk_level ? '20 (LOW RISK)' : 'Unscanned (Pending execution check)'}
+                            {selectedNode.properties.risk_level === 'HIGH' ? '100 (HIGH RISK)' : 
+                             selectedNode.properties.risk_level ? '30 (LOW RISK)' : 'Unscanned (Pending execution check)'}
                           </p>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.75rem', backgroundColor: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '6px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', fontSize: '0.72rem', backgroundColor: 'rgba(255,255,255,0.02)', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>Requires Auth:</span>
-                            <span>{selectedNode.properties.auth_required ? 'YES' : 'NO'}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>Requires Auth:</span>
+                            <span style={{ fontWeight: 600 }}>{selectedNode.properties.auth_required ? 'YES' : 'NO'}</span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>TLS Secure:</span>
-                            <span>{selectedNode.properties.tls_enabled ? 'YES' : 'NO'}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>TLS Secure:</span>
+                            <span style={{ fontWeight: 600 }}>{selectedNode.properties.tls_enabled ? 'YES' : 'NO'}</span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>Publicly exposed:</span>
-                            <span>{selectedNode.properties.public_exposed ? 'YES' : 'NO'}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>Publicly exposed:</span>
+                            <span style={{ fontWeight: 600 }}>{selectedNode.properties.public_exposed ? 'YES' : 'NO'}</span>
                           </div>
                         </div>
                       </div>
                     )}
 
                     {selectedNode.type === 'Tool' && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.8rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem' }}>
                         <div>
-                          <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Category</span>
-                          <p>{selectedNode.properties.category || '—'}</p>
+                          <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>Category</span>
+                          <p style={{ margin: '2px 0 0 0' }}>{selectedNode.properties.category || '—'}</p>
                         </div>
                         <div>
-                          <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Default Security Risk</span>
-                          <p style={{ color: selectedNode.properties.risk === 'HIGH' ? 'var(--accent-red)' : 'var(--text-primary)' }}>
+                          <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>Default Security Risk</span>
+                          <p style={{ color: selectedNode.properties.risk === 'HIGH' ? 'var(--accent-red)' : 'var(--text-primary)', margin: '2px 0 0 0', fontWeight: 600 }}>
                             {selectedNode.properties.risk || '—'}
                           </p>
                         </div>
                         <div>
-                          <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Description</span>
-                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.4' }}>{selectedNode.properties.description || '—'}</p>
+                          <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>Description</span>
+                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.4', margin: '2px 0 0 0' }}>{selectedNode.properties.description || '—'}</p>
                         </div>
                       </div>
                     )}
 
                     {selectedNode.type === 'Policy' && (
-                      <div style={{ fontSize: '0.8rem' }}>
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Rule details</span>
-                        <p style={{ color: 'var(--text-secondary)' }}>{selectedNode.properties.description || 'Active isolation policy constraint.'}</p>
+                      <div style={{ fontSize: '0.78rem' }}>
+                        <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>Rule details</span>
+                        <p style={{ color: 'var(--text-secondary)', margin: '2px 0 0 0', lineHeight: '1.4' }}>{selectedNode.properties.description || 'Active isolation policy constraint.'}</p>
                       </div>
                     )}
 

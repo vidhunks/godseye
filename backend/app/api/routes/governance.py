@@ -257,11 +257,13 @@ def get_graph_data():
     """
     nodes_query = """
     MATCH (n)
+    WHERE NOT n:ExecutionLog AND NOT n:RiskAssessment
     OPTIONAL MATCH (n)-[:HAS_RISK]->(r:RiskAssessment)
     RETURN id(n) AS id, labels(n)[0] AS label, properties(n) AS props, r.level AS risk_level
     """
     edges_query = """
     MATCH (n)-[r]->(m)
+    WHERE NOT n:ExecutionLog AND NOT n:RiskAssessment AND NOT m:ExecutionLog AND NOT m:RiskAssessment
     RETURN id(n) AS source, id(m) AS target, type(r) AS type, properties(r) AS props
     """
     
