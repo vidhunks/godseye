@@ -417,7 +417,7 @@ def run_agent(payload: RunAgentPayload):
             tl = agent_mappings.get(agent_name, "execute")
             try:
                 neo4j_service.create_usage(agent_name, srv)
-                neo4j_service.create_tool_call(srv, tl, status="BLOCKED")
+                neo4j_service.create_tool_call(srv, tl, status="BLOCKED", agent=agent_name, user="Admin", role="ADMIN")
             except Exception as ex:
                 print(f"Failed to log blocked execution: {ex}")
 
@@ -477,7 +477,7 @@ def run_agent(payload: RunAgentPayload):
                 srv, tl = agent_mappings[agent_name]
                 try:
                     neo4j_service.create_usage(agent_name, srv)
-                    neo4j_service.create_tool_call(srv, tl, status="FAILED")
+                    neo4j_service.create_tool_call(srv, tl, status="FAILED", agent=agent_name, user="Admin", role="ADMIN")
                 except Exception as ex:
                     print(f"Failed to log failed execution: {ex}")
 

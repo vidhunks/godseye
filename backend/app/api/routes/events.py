@@ -43,6 +43,8 @@ def receive_event(event: MCPExecutionEvent):
         tool=event.tool,
         status=event.status or "SUCCESS",
         agent=event.agent,
+        user=event.user,
+        role=event.role,
     )
 
     return {

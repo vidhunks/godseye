@@ -246,6 +246,8 @@ class Neo4jService:
         tool: str,
         status: str = "SUCCESS",
         agent: str = None,
+        user: str = None,
+        role: str = None,
     ):
         # 1. Update the active topology relationship for visualization
         query_topology = """
@@ -262,6 +264,8 @@ class Neo4jService:
             mcp_server: $server,
             tool: $tool,
             status: $status,
+            user: $user,
+            role: $role,
             timestamp: datetime()
         })
         """
@@ -279,6 +283,8 @@ class Neo4jService:
                 server=server,
                 tool=tool,
                 status=status,
+                user=user or "Admin",
+                role=role or "ADMIN",
             )
 
     def get_execution_logs(self, limit: int = 100):
@@ -293,6 +299,8 @@ class Neo4jService:
             l.mcp_server AS mcp_server,
             l.tool AS tool,
             l.status AS status,
+            l.user AS user,
+            l.role AS role,
             toString(l.timestamp) AS timestamp
         ORDER BY l.timestamp DESC
         LIMIT $limit
@@ -307,6 +315,8 @@ class Neo4jService:
                         "mcp_server": record["mcp_server"],
                         "tool":       record["tool"],
                         "status":     record["status"] or "SUCCESS",
+                        "user":       record["user"] or "Admin",
+                        "role":       record["role"] or "ADMIN",
                         "timestamp":  record["timestamp"],
                     })
         except Exception as e:

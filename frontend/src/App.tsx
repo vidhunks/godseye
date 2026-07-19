@@ -45,6 +45,7 @@ export default function App() {
   const [executionLogs, setExecutionLogs] = useState<any[]>([])
   const [logsFilter, setLogsFilter] = useState<'all' | 'SUCCESS' | 'BLOCKED' | 'FAILED'>('all')
   const [loadingLogs, setLoadingLogs] = useState(false)
+  const [selectedLog, setSelectedLog] = useState<any | null>(null)
 
   // Compliance query states
   const [orphanAgents, setOrphanAgents] = useState<string[]>([])
@@ -860,20 +861,23 @@ export default function App() {
                           {executionLogs
                             .filter(l => logsFilter === 'all' || l.status === logsFilter)
                             .map((log, i) => (
-                              <tr key={i}>
+                              <tr key={i} onClick={() => setSelectedLog(log)} style={{ cursor: 'pointer', transition: 'var(--transition-smooth)' }} title="Click to view visual execution path">
                                 <td className="ts-cell">
                                   {log.timestamp ? log.timestamp.replace('T', ' ').substring(0, 19) : '—'}
                                 </td>
-                                <td style={{ color: 'var(--accent-orange)' }}>{log.agent || '—'}</td>
+                                <td style={{ color: 'var(--accent-orange)', fontWeight: 600 }}>{log.agent || '—'}</td>
                                 <td>{log.mcp_server || '—'}</td>
                                 <td style={{ color: 'var(--accent-blue)' }}>{log.tool || '—'}</td>
                                 <td>
-                                  <span className={`badge badge-${
-                                    log.status === 'SUCCESS' ? 'success' :
-                                    log.status === 'BLOCKED' ? 'blocked' : 'failed'
-                                  }`}>
-                                    {log.status === 'SUCCESS' ? '✓' : '⛔'} {log.status}
-                                  </span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span className={`badge badge-${
+                                      log.status === 'SUCCESS' ? 'success' :
+                                      log.status === 'BLOCKED' ? 'blocked' : 'failed'
+                                    }`}>
+                                      {log.status === 'SUCCESS' ? '✓' : '⛔'} {log.status}
+                                    </span>
+                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>inspect ➔</span>
+                                  </div>
                                 </td>
                               </tr>
                           ))}
@@ -1479,6 +1483,227 @@ export default function App() {
       }}>
         GodsEye Policy Gatekeeper • Ash-Orange Threat Compliance Platform
       </footer>
+
+      {/* ── AUDIT TRAJECTORY PATH VISUALIZER MODAL ────────────────── */}
+      {selectedLog && (
+        <div className="modal-backdrop" style={{
+          position: 'fixed',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }} onClick={() => setSelectedLog(null)}>
+          <div className="gradient-border node-cascade" style={{
+            background: 'var(--bg-secondary)',
+            width: '100%',
+            maxWidth: '920px',
+            borderRadius: '16px',
+            padding: '28px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '24px',
+            border: '1px solid rgba(255, 159, 67, 0.2)',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7)'
+          }} onClick={e => e.stopPropagation()}>
+            
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+              <div>
+                <h4 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-orange)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Shield size={20} /> Execution Trajectory Audit
+                </h4>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '3px' }}>
+                  Transaction Log ID: <code>{selectedLog.timestamp ? selectedLog.timestamp.replace(/[^0-9]/g, '').substring(4, 12) : '12345678'}</code> · Recorded {selectedLog.timestamp ? selectedLog.timestamp.replace('T', ' ').substring(0, 19) : '—'}
+                </p>
+              </div>
+              <button onClick={() => setSelectedLog(null)} className="btn-ghost" style={{ padding: '6px 12px', fontSize: '0.78rem' }}>Close [X]</button>
+            </div>
+
+            {/* Info Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '8px', padding: '10px 14px', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>User Context</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px' }}>
+                  {selectedLog.user}
+                </div>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '8px', padding: '10px 14px', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Assumed Role</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-blue)', marginTop: '3px' }}>
+                  {selectedLog.role}
+                </div>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '8px', padding: '10px 14px', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</div>
+                <div style={{ marginTop: '4px' }}>
+                  <span className={`badge badge-${selectedLog.status === 'SUCCESS' ? 'success' : selectedLog.status === 'BLOCKED' ? 'blocked' : 'failed'}`}>
+                    {selectedLog.status === 'SUCCESS' ? '✓ APPROVED' : selectedLog.status === 'BLOCKED' ? '⛔ BLOCKED' : '⚠️ FAILED'}
+                  </span>
+                </div>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '8px', padding: '10px 14px', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Target Server</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '3px' }}>
+                  {selectedLog.mcp_server}
+                </div>
+              </div>
+            </div>
+
+            {/* Trajectory Graph Display */}
+            <div style={{
+              background: 'rgba(0, 0, 0, 0.4)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              padding: '36px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              {/* User Node */}
+              <div className="node-cascade" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', zIndex: 1, animationDelay: '0.05s' }}>
+                <div style={{ width: '46px', height: '46px', borderRadius: '50%', background: 'rgba(230, 126, 34, 0.15)', border: '2px solid #e67e22', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#e67e22', boxShadow: '0 0 15px rgba(230, 126, 34, 0.3)' }}>
+                  <Cpu size={20} />
+                </div>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-primary)' }}>User: {selectedLog.user}</span>
+              </div>
+
+              {/* Line 1 */}
+              <svg width="60" height="12" style={{ flexShrink: 0 }}>
+                <line x1="0" y1="6" x2="60" y2="6" strokeWidth="3" className={`connector-line-${selectedLog.status.toLowerCase()}`} />
+              </svg>
+
+              {/* Orchestrator Node */}
+              <div className="node-cascade" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', zIndex: 1, animationDelay: '0.2s' }}>
+                <div style={{ width: '46px', height: '46px', borderRadius: '50%', background: 'rgba(255, 159, 67, 0.15)', border: '2px solid var(--accent-orange)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-orange)', boxShadow: '0 0 15px rgba(255, 159, 67, 0.3)' }}>
+                  <Shield size={20} />
+                </div>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-primary)' }}>Brain Agent</span>
+              </div>
+
+              {/* Line 2 */}
+              <svg width="60" height="12" style={{ flexShrink: 0 }}>
+                <line x1="0" y1="6" x2="60" y2="6" strokeWidth="3" className={`connector-line-${selectedLog.status.toLowerCase()}`} />
+              </svg>
+
+              {/* Sub-Agent Node */}
+              <div className="node-cascade" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', zIndex: 1, animationDelay: '0.35s' }}>
+                <div style={{
+                  width: '46px', height: '46px', borderRadius: '50%',
+                  background: selectedLog.status === 'FAILED' ? 'rgba(255, 71, 87, 0.15)' : 'rgba(84, 160, 255, 0.15)',
+                  border: `2px solid ${selectedLog.status === 'FAILED' ? 'var(--accent-red)' : 'var(--accent-blue)'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: selectedLog.status === 'FAILED' ? 'var(--accent-red)' : 'var(--accent-blue)',
+                  boxShadow: `0 0 15px ${selectedLog.status === 'FAILED' ? 'rgba(255, 71, 87, 0.3)' : 'rgba(84, 160, 255, 0.3)'}`
+                }}>
+                  <Cpu size={20} />
+                </div>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-primary)' }}>{selectedLog.agent}</span>
+              </div>
+
+              {/* Line 3 */}
+              <svg width="60" height="12" style={{ flexShrink: 0 }}>
+                <line x1="0" y1="6" x2="60" y2="6" strokeWidth="3" className={`connector-line-${selectedLog.status.toLowerCase()}`} />
+              </svg>
+
+              {/* GodsEye Proxy Node */}
+              <div className="node-cascade" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', zIndex: 1, animationDelay: '0.5s' }}>
+                <div style={{
+                  width: '46px', height: '46px', borderRadius: '50%',
+                  background: selectedLog.status === 'BLOCKED' ? 'rgba(255, 71, 87, 0.2)' : 'rgba(0, 210, 211, 0.15)',
+                  border: `2px solid ${selectedLog.status === 'BLOCKED' ? 'var(--accent-red)' : '#00d2d3'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: selectedLog.status === 'BLOCKED' ? 'var(--accent-red)' : '#00d2d3',
+                  boxShadow: `0 0 15px ${selectedLog.status === 'BLOCKED' ? 'rgba(255, 71, 87, 0.4)' : 'rgba(0, 210, 211, 0.3)'}`
+                }} className={selectedLog.status === 'BLOCKED' ? 'radar-pulse' : ''}>
+                  <Network size={20} />
+                </div>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-primary)' }}>GodsEye Proxy</span>
+              </div>
+
+              {/* Line 4 */}
+              <svg width="60" height="12" style={{ flexShrink: 0 }}>
+                <line x1="0" y1="6" x2="60" y2="6" strokeWidth="3" className={`connector-line-${selectedLog.status.toLowerCase()}`} />
+              </svg>
+
+              {/* MCP Server Node */}
+              <div className="node-cascade" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', zIndex: 1, animationDelay: '0.65s' }}>
+                <div style={{
+                  width: '46px', height: '46px', borderRadius: '50%',
+                  background: selectedLog.status === 'BLOCKED' ? 'rgba(255, 71, 87, 0.1)' : 'rgba(46, 213, 115, 0.15)',
+                  border: `2px solid ${selectedLog.status === 'BLOCKED' ? '#ff4757' : 'var(--accent-green)'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: selectedLog.status === 'BLOCKED' ? '#ff4757' : 'var(--accent-green)',
+                  boxShadow: `0 0 15px ${selectedLog.status === 'BLOCKED' ? 'rgba(255, 71, 87, 0.2)' : 'rgba(46, 213, 115, 0.3)'}`,
+                  opacity: selectedLog.status === 'BLOCKED' ? 0.6 : 1
+                }}>
+                  <Database size={20} />
+                </div>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: selectedLog.status === 'BLOCKED' ? '#ff4757' : 'var(--text-primary)' }}>
+                  {selectedLog.mcp_server}
+                </span>
+              </div>
+
+              {/* Line 5 */}
+              <svg width="60" height="12" style={{ flexShrink: 0 }}>
+                <line x1="0" y1="6" x2="60" y2="6" strokeWidth="3" className={`connector-line-${selectedLog.status.toLowerCase()}`} style={{ opacity: selectedLog.status === 'BLOCKED' ? 0.2 : 1 }} />
+              </svg>
+
+              {/* Tool Node */}
+              <div className="node-cascade" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', zIndex: 1, animationDelay: '0.8s' }}>
+                <div style={{
+                  width: '46px', height: '46px', borderRadius: '50%',
+                  background: selectedLog.status === 'SUCCESS' ? 'rgba(46, 213, 115, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                  border: `2px solid ${selectedLog.status === 'SUCCESS' ? 'var(--accent-green)' : 'var(--border-color)'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: selectedLog.status === 'SUCCESS' ? 'var(--accent-green)' : 'var(--text-secondary)',
+                  boxShadow: selectedLog.status === 'SUCCESS' ? '0 0 15px rgba(46, 213, 115, 0.3)' : 'none',
+                  opacity: selectedLog.status === 'SUCCESS' ? 1 : 0.4
+                }}>
+                  <Terminal size={20} />
+                </div>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: selectedLog.status === 'SUCCESS' ? 'var(--accent-green)' : 'var(--text-secondary)' }}>
+                  {selectedLog.status === 'BLOCKED' ? '🚫 BLOCKED' : selectedLog.tool}
+                </span>
+              </div>
+            </div>
+
+            {/* Explanation / Audit Summary */}
+            <div style={{
+              background: 'rgba(255,255,255,0.02)',
+              borderRadius: '8px',
+              padding: '16px',
+              borderLeft: `4px solid ${
+                selectedLog.status === 'SUCCESS' ? 'var(--accent-green)' :
+                selectedLog.status === 'BLOCKED' ? 'var(--accent-red)' : 'var(--accent-red)'
+              }`,
+              fontSize: '0.85rem',
+              lineHeight: '1.5'
+            }}>
+              <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>Security Audit Verdict:</strong>
+              {selectedLog.status === 'SUCCESS' && (
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  Task execution was approved. The request from user **{selectedLog.user}** successfully bypassed all active isolation criteria and mapped to **{selectedLog.mcp_server}** to invoke tool `"{selectedLog.tool}"`. Posture is compliant.
+                </span>
+              )}
+              {selectedLog.status === 'BLOCKED' && (
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  The task was **blocked pre-emptively** by the GodsEye Policy Interceptor. The routed agent (**{selectedLog.agent}**) attempted to target high-risk resources on server **{selectedLog.mcp_server}**. Execution subprocess was terminated safely before any external commands could run.
+                </span>
+              )}
+              {selectedLog.status === 'FAILED' && (
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  The task was initiated and allowed by the gateway, but the orchestrator run returned a non-zero exit code failure. Check target server console logs for runtime exceptions or authentication key issues.
+                </span>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   )
 }
