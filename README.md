@@ -1,4 +1,5 @@
 # GodsEye 👁️
+### **The Enterprise AI Governance, Audit, & Security Control Plane for Agentic Fleet and Model Context Protocol (MCP) Ecosystems.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-Supported-blue.svg)](https://www.docker.com/)
@@ -6,19 +7,21 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
 [![Neo4j](https://img.shields.io/badge/Neo4j-5.x-blue.svg)](https://neo4j.com/)
 
-**The Enterprise AI Governance, Audit, & Security Control Plane for Agentic Fleet and Model Context Protocol (MCP) Ecosystems.**
+GodsEye is a comprehensive security gatekeeper and auditing plane designed to govern, inspect, and authorize AI Agent clusters interacting with Model Context Protocol (MCP) servers. 
 
-GodsEye is a comprehensive security gatekeeper for AI Agent clusters. It auto-discovers agent configurations, inventories active MCP server exposures, logs runtime execution trajectories persistently, computes multi-dimensional compliance risk tiers, and generates Open Policy Agent (OPA) access rules to block high-risk capabilities before they threaten enterprise resources.
+The platform passively intercepts standard input/output streams, inventories active servers, evaluates multi-dimensional security postures, compiles interactive dependency graphs, and auto-generates Open Policy Agent (OPA) access rules to lock down high-risk endpoints.
 
 ---
 
 ## 🧩 The Security Gap in Agentic AI
 
-In modern enterprise architectures, AI agents connect to diverse **Model Context Protocol (MCP)** servers to read databases, write logs, edit code, and trigger deployments. Many of these servers run with **no authentication**, expose **destructive shell commands** to LLMs, and lack **audit trails**. 
+Model Context Protocol (MCP) is the emerging standard for connecting LLM agents to data sources and tools. However, it introduces significant corporate vulnerability:
+1. **Unauthenticated Endpoints**: Many internal MCP servers run on localhost or private subnets without any authentication.
+2. **Over-privileged Commands**: Servers expose dangerous administrative tools (e.g. `execute_shell`, `restart_server`, `delete_logs`) directly to LLMs.
+3. **Zero Auditing**: Standard LLM integrations have no central audit trails recording which user prompted which agent to execute which database command.
 
-Organizations suffer from **zero visibility** into what capabilities their agent fleets are utilizing.
-
-**GodsEye fixes this by introducing a transparent security and audit wrapper:**
+### GodsEye Solution:
+By placing a transparent **Stdio Interceptor Proxy** between the agent client and the server process, GodsEye intercepts execution requests on the fly. It queries OPA policies, publishes audit events, and injects clean JSON-RPC error responses if a high-risk tool call is unauthorized.
 
 ```
                         ┌────────────────────────┐
@@ -46,21 +49,21 @@ Organizations suffer from **zero visibility** into what capabilities their agent
 
 ---
 
-## ✨ Features
+## ✨ Core Features
 
-- 🔍 **Ecosystem Discovery & Inventory** — Auto-scans all registered MCP servers. Logs TLS status, authentication headers, public accessibility, and exposed tools.
-- 🛡️ **Rule-Based Risk Assessment** — Scores servers from `0-100` across four key security dimensions: Authentication, Network Exposure, Tool Category, and Operational Auditing.
-- 🕸️ **State-of-the-Art Governance Graph** — Interactive vis.js map visualizing connections from `User` ➔ `Agent` ➔ `Proxy` ➔ `Server` ➔ `Tool` ➔ `DataSource`. Features custom SVG vector nodes, glowing halos, and dynamic trace highlighting.
-- 👁️ **Visual Trajectory Auditor** — Double-click any persistent execution log row to pop up an animated step-by-step path detailing exactly how the command flowed.
+- 🔍 **MCP Server Auto-Discovery & Scanning** — Recursively crawls configuration folders, maps active servers, queries capabilities, and parses standard metadata using the `get_governance_metadata()` protocol.
+- 🛡️ **Rule-Based Risk Analyzer** — Assesses servers on a `0-100` score using factors like auth rules, TLS encryption, public subnet mapping, and destructive tool categories.
+- 🕸️ **Futuristic Governance Graph** — Vis.js visualization engine displaying connections from `User` ➔ `Agent` ➔ `Proxy` ➔ `Server` ➔ `Tool` ➔ `DataSource`. Features custom dynamic SVG vector shapes, glowing halos, and dynamic trace highlighting.
+- 👁️ **Visual Trajectory Auditor** — Double-click any persistent execution log row to pop up an animated path modal mapping exactly how the request flowed from the user to the command.
 - 💥 **Blast Radius Engine** — Graph-traversal queries that identify every user, agent, and server exposed to a specific tool in the event of credential leakage or compromised models.
-- 🤖 **Automated OPA Policy Generation** — Compiles Rego files to dynamically authorize agent-to-tool bindings based on live risk assessments.
-- 📊 **Persistent Execution Logs** — Robust log ingestion layer that persists successful, blocked, and failed agent events across scans and reboots.
+- 🤖 **Automated OPA Policy Generation** — Compiles Rego files to authorize agent-to-tool bindings based on live risk assessments.
+- 📊 **Persistent Execution Logs** — Ingestion layer that persists successful, blocked, and failed agent events in Neo4j across database sweeps.
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Technical Architecture
 
-GodsEye is built on a containerized, decoupled architecture:
+GodsEye is organized into a modular structure:
 
 1. **Dashboard (React 18 + Vite)**: A premium glassmorphism dark-mode UI displaying risk scores, logs, blast-radius control tools, and the visualizer canvas.
 2. **Control Plane (FastAPI)**: Ingests logs, runs OPA code compilers, executes graph queries, and discovers static network configurations.
@@ -69,30 +72,38 @@ GodsEye is built on a containerized, decoupled architecture:
 
 ---
 
-## 📁 Repository Structure
+## 📁 Repository Structure & Code Analysis
 
+### Directory Layout
 ```
 godseye/
 ├── backend/
 │   ├── app/
 │   │   ├── api/routes/         # REST API endpoints (governance, events, discovery)
-│   │   ├── scanner/            # Stdio-based MCP metadata scanner
-│   │   ├── risk/               # Scoring calculator (0-100 risk rules)
+│   │   │   ├── discovery.py    # Auto-scans workspaces and registers nodes
+│   │   │   ├── events.py       # Ingests telemetry logs from proxy wrappers
+│   │   │   └── governance.py   # OPA generator, blast radius queries, execution logs
+│   │   ├── scanner/            # Connects to servers via stdio client to audit schemas
+│   │   ├── risk/               # Calculates 0-100 risk score and recommendations
 │   │   └── services/           # Neo4j Graph Database Bolt wrapper
-│   ├── Dockerfile              # Light python runner container
-│   └── requirements.txt        # Backend dependencies
+│   ├── Dockerfile              # Python API container running FastAPI + Uvicorn
+│   └── requirements.txt        # Backend dependencies (fastapi, neo4j, mcp, fastmcp)
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── App.tsx             # Vis.js graph + Logs list + Admin Dashboard
-│   │   └── index.css           # Glowing overlays & glass styles
-│   ├── nginx.conf              # Nginx server configuration with proper root directives
-│   └── Dockerfile              # Multi-stage production container build
+│   │   ├── App.tsx             # Main entry point housing Vis.js full-screen graph
+│   │   └── index.css           # Custom glass CSS, visualizer animations, crawling paths
+│   ├── nginx.conf              # Production Nginx reverse-proxy configuration
+│   └── Dockerfile              # Multi-stage Vite build + Nginx static serving
 │
 ├── infrastructure/
-│   └── docker-compose.yml      # Orchestrates Neo4j, backend, and frontend
+│   └── docker-compose.yml      # Orchestrates neo4j, backend, and frontend
 │
 ├── mcp_servers/                # Sample servers (Finance, HR, DevOps)
+│   ├── devops_server/          # HIGH risk (exposes shell command execution, no auth)
+│   ├── finance_server/         # LOW risk (auth, audit, TLS, limited scopes)
+│   └── hr_server/              # LOW risk (auth, audit, TLS, limited scopes)
+│
 ├── sample_agents/              # Sample agents (Brain Agent orchestrator + subs)
 └── scripts/
     └── mcp_proxy.py            # stdio packet interceptor wrapper
@@ -100,19 +111,100 @@ godseye/
 
 ---
 
-## 🚀 Quick Start (Local Docker Compose)
+## 🔌 GodsEye Interceptor Proxy (`mcp_proxy.py`)
 
-Make sure you have [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/) installed.
+The proxy wrapper runs inline as a pass-through layer:
 
-### 1. Configure the Environment
-Copy the backend config file template:
+```bash
+python mcp_proxy.py \
+  --server ../../mcp_servers/devops_server/server.py \
+  --server-name "DevOps MCP" \
+  --agent "DevOps Agent" \
+  --user "Admin" \
+  --role "ADMIN"
+```
+
+### Protocol Interception Mechanics
+When the agent sends a JSON-RPC request:
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "execute_shell",
+    "arguments": {"command": "rm -rf /logs"}
+  },
+  "id": 1
+}
+```
+1. **Security Policy Check**: If the target server is marked as `HIGH` risk, the proxy immediately drops the request.
+2. **Error Injection**: It writes a custom JSON-RPC error payload back to the agent stdout:
+   ```json
+   {
+     "jsonrpc": "2.0",
+     "id": 1,
+     "error": {
+       "code": -32602,
+       "message": "Access Denied by GodsEye Policy: Server 'DevOps MCP' has HIGH risk score."
+     }
+   }
+   ```
+3. **Security Logging**: It POSTs a `BLOCKED` event to the backend events server asynchronously without blocking the stream.
+
+---
+
+## 🛡️ Governance Risk Model (0-100 Scoring)
+
+The `RiskEngine` class evaluates every discovered server based on strict weights:
+
+| Check Category | Criteria | Points Added |
+| :--- | :--- | :---: |
+| **Base Configuration** | Starting initial score | **10** |
+| **Authentication** | Authentication disabled (`enabled = False`) | **+30** |
+| **Encryption** | TLS transport disabled (`tls_enabled = False`) | **+30** |
+| **Exposure** | Publicly reachable (`publicly_reachable = True`) | **+10** |
+| **Capabilities** | Exposes tools in `DELETE` or `EXECUTE` category | **+20** |
+
+- 🟢 **0–34 (LOW Risk)**: e.g., Finance & HR servers (have Auth, TLS, audit logs).
+- 🟡 **35–59 (MEDIUM Risk)**.
+- 🔴 **60–100 (HIGH Risk)**: e.g., DevOps server (exposes execution shell, has no auth/TLS).
+
+---
+
+## 🏛️ Cypher Graph Queries (Neo4j)
+
+GodsEye maps security posture into a highly traversable structure:
+
+### 1. Active Threat Path Highlight
+Find the last executing tool path to highlight on the visualization canvas:
+```cypher
+MATCH (m:MCPServer)-[c:CALLS]->(t:Tool)
+WITH m, t, c ORDER BY c.timestamp DESC LIMIT 1
+MATCH path = (u:User)-[*0..6]->(m)
+RETURN id(t) AS tool_id, [node in nodes(path) | id(node)] AS node_ids
+```
+
+### 2. Execution Log Detach Exemption
+When clearing active network maps, preserve historical run logs:
+```cypher
+MATCH (n)
+WHERE NOT n:ExecutionLog
+DETACH DELETE n
+```
+
+---
+
+## 🚀 Local Quick Start (Docker Compose)
+
+### 1. Configuration
+Copy the configuration template:
 ```bash
 cp backend/.env.example backend/.env
 ```
-Open `backend/.env` and insert your **Groq API Key** (or OpenAI API Key) for LLM routing fallback, along with your secure database credentials.
+Edit `backend/.env` to configure your LLM keys (`GROK_API_KEY` or `OPENAI_API_KEY`) and secure passwords.
 
-### 2. Start the Fleet
-Run the docker compose file from the `infrastructure/` directory:
+### 2. Run the Stack
+Build and spin up the containerized network:
 ```bash
 cd infrastructure
 docker compose up --build -d
@@ -122,83 +214,6 @@ Verify that all three core services are up:
 - **Frontend Dashboard**: [http://localhost:3000](http://localhost:3000)
 - **FastAPI OpenAPI Swagger**: [http://localhost:8000/docs](http://localhost:8000/docs)
 - **Neo4j Browser Console**: [http://localhost:7474](http://localhost:7474) (Username: `neo4j`, Password: `password`)
-
-### 3. Run the Initial Audit
-1. Navigate to the dashboard at [http://localhost:3000](http://localhost:3000).
-2. Click **"Discover Agents"** to bootstrap the network.
-3. Click **"Scan Network"** to trigger a recursive capability sweep.
-4. Your dashboard will now populate with active **Risk Cards**, the **Ecosystem Governance Graph**, and **OPA Policy Stubs**.
-
----
-
-## 🛡️ Governance Risk Model (0-100 Scoring)
-
-The Compliance Risk Calculator evaluates every discovered MCP server based on strict weights:
-
-| Category | Finding | Score Penalty |
-| :--- | :--- | :---: |
-| **Authentication** | No authentication configured | **+20** |
-| | Weak/Basic Auth token | **+5** |
-| **Network** | Bound to public internet (0.0.0.0) | **+25** |
-| | Unencrypted transport protocol (HTTP/stdio) | **+10** |
-| **Capabilities** | Exposes administrative commands (`execute_shell`, `deploy`) | **+15** |
-| | Exposes destructive commands (`delete`, `remove`) | **+10** |
-| **Operational** | No logging/audit endpoint exposed | **+10** |
-| | Missing metadata fields (Owner, Version) | **+4** |
-
-### Evaluated Risk Thresholds
-- 🟢 **0–34**: **LOW Risk** (Finance and HR servers run with TLS, Auth, and active auditing).
-- 🟡 **35–59**: **MEDIUM Risk**.
-- 🔴 **60–100**: **HIGH Risk** (DevOps server lacks authentication, binds to public interfaces, and exposes shell executors).
-
----
-
-## 🔌 GodsEye Interceptor Proxy
-
-The proxy script (`scripts/mcp_proxy.py`) sits silently as a standard I/O pipe wrapper between your LLM Agent framework (LangChain, AutoGen, etc.) and the target MCP server:
-
-```bash
-python mcp_proxy.py \
-  --server ../../mcp_servers/devops_server/server.py \
-  --server-name "DevOps MCP" \
-  --agent "DevOps Agent" \
-  --user "Admin" \
-  --role "ADMIN" \
-  --enforce
-```
-
-### Modes of Operation
-- **Observe (Passive)**: Intercepts outgoing `tools/call` JSON-RPC requests, parses the calling parameters, logs them to `/events/` database endpoint, and pipes the result cleanly back.
-- **Enforce (Active)**: Queries OPA policies beforehand. If the tool call violates security settings (e.g. executing shell commands from a high-risk server), the proxy blocks the stream and returns a structured JSON-RPC error.
-
----
-
-## 🏛️ Cypher Graph Queries (Neo4j)
-
-GodsEye resolves advanced security questions using Neo4j graph traversals:
-
-### 1. Blast Radius Query
-Given a compromised server or tool name, trace the complete dependency hierarchy to see which agents and users are affected:
-```cypher
-MATCH path = (u:User)-[*0..6]->(m:MCPServer)-[:EXPOSES]->(t:Tool {name: "execute_shell"})
-RETURN path
-```
-
-### 2. Orphan Agent Discovery
-Find agents running in your ecosystem that have no governance policy attached:
-```cypher
-MATCH (a:Agent)
-WHERE NOT (a)-[:HAS_POLICY]->(:Policy)
-RETURN a.name AS orphan_agent
-```
-
-### 3. Excluded Audit Scans
-Since execution logs must persist historically, database bootstrap detaches exclude execution nodes:
-```cypher
-MATCH (n)
-WHERE NOT n:ExecutionLog
-DETACH DELETE n
-```
 
 ---
 
