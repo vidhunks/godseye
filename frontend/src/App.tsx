@@ -210,102 +210,101 @@ export default function App() {
       }
     });
 
+    const createSvgNode = (group: string, label: string, isHighRisk: boolean, isLastPath: boolean) => {
+      let color = '#7c8490'; 
+      let iconPath = '';
+
+      if (group === 'Agent') {
+        if (label === 'Brain Agent') {
+          color = '#ff9f43'; 
+          iconPath = `<path d="M40 24s-14 3-14 11c0 8.5 9 17 14 21 5-4 14-12.5 14-21 0-8-14-11-14-11z" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+        } else {
+          color = '#54a0ff'; 
+          iconPath = `<rect x="28" y="28" width="24" height="24" rx="2" fill="none" stroke="${color}" stroke-width="2.5"/>` +
+                     `<path d="M34 22v6M40 22v6M46 22v6M34 52v6M40 52v6M46 52v6M22 34h6M22 40h6M22 46h6M52 34h6M52 40h6M52 46h6" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>`;
+        }
+      } else if (group === 'Proxy') {
+        color = '#00d2d3'; 
+        iconPath = `<rect x="33" y="25" width="14" height="14" rx="2" fill="none" stroke="${color}" stroke-width="2.5"/>` +
+                   `<rect x="23" y="45" width="10" height="10" rx="1" fill="none" stroke="${color}" stroke-width="2"/>` +
+                   `<rect x="47" y="45" width="10" height="10" rx="1" fill="none" stroke="${color}" stroke-width="2"/>` +
+                   `<path d="M40 39v6M28 45v-3h24v3" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>`;
+      } else if (group === 'MCPServer') {
+        if (isHighRisk) {
+          color = '#ff4757'; 
+        } else {
+          color = '#2ed573'; 
+        }
+        iconPath = `<ellipse cx="40" cy="28" rx="14" ry="5" fill="none" stroke="${color}" stroke-width="2.5"/>` +
+                   `<path d="M26 28v8c0 2.8 6.3 5 14 5s14-2.2 14-5v-8M26 38v8c0 2.8 6.3 5 14 5s14-2.2 14-5v-8" fill="none" stroke="${color}" stroke-width="2.5"/>`;
+      } else if (group === 'Tool') {
+        color = '#a29bfe'; 
+        iconPath = `<path d="M30 32l10 8-10 8M42 48h12" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+      } else if (group === 'DataSource') {
+        color = '#ff9f43'; 
+        iconPath = `<ellipse cx="40" cy="28" rx="14" ry="5" fill="none" stroke="${color}" stroke-width="2.5"/>` +
+                   `<path d="M26 28v16c0 2.8 6.3 5 14 5s14-2.2 14-5v-16" fill="none" stroke="${color}" stroke-width="2.5"/>`;
+      } else if (group === 'Policy') {
+        color = '#9b59b6'; 
+        iconPath = `<rect x="26" y="22" width="28" height="36" rx="3" fill="none" stroke="${color}" stroke-width="2.5"/>` +
+                   `<path d="M32 30h16M32 38h16M32 46h10" stroke="${color}" stroke-width="2" stroke-linecap="round"/>`;
+      } else if (group === 'User') {
+        color = '#ffd32a'; 
+        iconPath = `<circle cx="40" cy="32" r="8" fill="none" stroke="${color}" stroke-width="2.5"/>` +
+                   `<path d="M26 50c0-6 6-10 14-10s14 4 14 10" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>`;
+      }
+
+      const strokeWidth = isLastPath ? 4.5 : 2.5;
+      const outerRing = isLastPath || isHighRisk
+        ? `<circle cx="40" cy="40" r="37" fill="none" stroke="${color}" stroke-width="2.2" stroke-opacity="0.65" stroke-dasharray="4 3" />`
+        : `<circle cx="40" cy="40" r="36" fill="none" stroke="${color}" stroke-width="1.2" stroke-opacity="0.3" />`;
+
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80">
+          <defs>
+            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+          </defs>
+          <circle cx="40" cy="40" r="30" fill="#0d0f10" stroke="${color}" stroke-width="${strokeWidth}" ${isLastPath ? 'filter="url(#glow)"' : ''} />
+          ${outerRing}
+          ${iconPath}
+        </svg>
+      `;
+
+      return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    };
+
     const nodes = rawNodes.map((n: any) => {
-      let color = '#57606f' // default neutral gray
-      let fontColor = '#dcdde1'
-      let shape = 'dot'
-      let size = 20
-
-      if (n.group === 'Agent') {
-        if (n.label === 'Brain Agent') {
-          color = '#e67e22' // Vivid orange/gold orchestrator
-          shape = 'box'
-          size = 32
-        } else {
-          color = '#2980b9' // Bright professional blue for sub-agents
-          shape = 'box'
-          size = 26
-        }
-      } else if (n.group === 'Proxy') {
-        color = '#00d2d3' // GodsEye intercepting proxy cyan
-        shape = 'diamond'
-        size = 22
-      } else if (n.group === 'MCPServer') {
-        if (highRiskServers.has(n.id)) {
-          color = '#ff4757' // red
-          fontColor = '#ff4757'
-        } else if (lowRiskServers.has(n.id)) {
-          color = '#2ed573' // green
-          fontColor = '#2ed573'
-        } else {
-          color = '#8c9099' // neutral unscanned gray
-          fontColor = '#8c9099'
-        }
-        shape = 'dot'
-        size = 28
-      } else if (n.group === 'Tool') {
-        color = '#57606f'
-        shape = 'dot'
-        size = 15
-      } else if (n.group === 'DataSource') {
-        color = '#ff9f43' // orange accent
-        shape = 'dot'
-        size = 20
-      } else if (n.group === 'Policy') {
-        color = '#9b59b6'
-        shape = 'box'
-        size = 20
-      } else if (n.group === 'User') {
-        color = '#e67e22'
-        shape = 'box'
-        size = 20
-      }
-
-      let borderWidth = 2
-      let borderColor = '#2f3542'
+      const isHighRisk = highRiskServers.has(n.id) || (n.group === 'Tool' && n.properties.risk === 'HIGH');
+      const isLastPath = !!n.is_last_path;
       
-      if (n.group === 'Agent') {
-        if (n.label === 'Brain Agent') {
-          borderWidth = 3
-          borderColor = '#ff9f43'
-        } else {
-          borderWidth = 2
-          borderColor = '#3498db'
-        }
-      } else if (n.group === 'Proxy') {
-        borderWidth = 2
-        borderColor = '#0abde3'
-      }
-      
-      if (n.is_last_path) {
-        borderColor = '#ff9f43' // orange path glow
-        borderWidth = 4
-      }
+      let fontColor = '#dcdde1';
+      if (isHighRisk) fontColor = '#ff4757';
+      else if (lowRiskServers.has(n.id)) fontColor = '#2ed573';
+      else if (n.is_last_path) fontColor = '#ff9f43';
+
+      let size = 26;
+      if (n.group === 'Agent' && n.label === 'Brain Agent') size = 36;
+      else if (n.group === 'Tool') size = 20;
 
       return {
         id: n.id,
         label: n.label,
-        shape: shape,
+        shape: 'image',
+        image: createSvgNode(n.group, n.label, isHighRisk, isLastPath),
         size: size,
-        color: {
-          background: color,
-          border: borderColor,
-          highlight: {
-            background: color,
-            border: '#ffffff'
-          }
-        },
         font: {
-          color: n.group === 'Agent' ? '#ffffff' : fontColor,
+          color: fontColor,
           size: n.label === 'Brain Agent' ? 14 : 12,
           face: 'Outfit',
           bold: n.group === 'Agent' ? true : false
         },
-        borderWidth: borderWidth,
         properties: n.properties,
         groupType: n.group
-      }
-    })
+      };
+    });
 
     const edges = rawEdges.map((e: any, idx: number) => {
       let color = '#57606f'
