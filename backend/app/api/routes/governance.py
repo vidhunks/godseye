@@ -592,7 +592,7 @@ def generate_opa_policy():
 
     # 3. Fallback to static rule-based policy if LLM generation was not used or failed
     if not rego_stub:
-        if grok_key or openai_key:
+        if groq_key or openai_key:
             print("[LLM OPA Generator] LLM policy generation failed. Falling back to rule-based...")
         else:
             print("[LLM OPA Generator (Rule-based Fallback)] No API key found. Using static generator...")
