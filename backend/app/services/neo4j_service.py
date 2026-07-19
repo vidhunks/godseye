@@ -262,5 +262,38 @@ class Neo4jService:
                 status=status,
             )
 
+    def get_execution_logs(self, limit: int = 100):
+        """
+        Returns the last N execution log entries stored as CALLS relationships
+        in Neo4j, ordered by most recent first.
+        """
+        query = """
+        MATCH (a:Agent)-[:USES]->(p:Proxy)-[:CONNECTS_TO]->(m:MCPServer)-[c:CALLS]->(t:Tool)
+        WHERE c.timestamp IS NOT NULL
+        RETURN
+            a.name AS agent,
+            m.name AS mcp_server,
+            t.name AS tool,
+            c.status AS status,
+            toString(c.timestamp) AS timestamp
+        ORDER BY c.timestamp DESC
+        LIMIT $limit
+        """
+        logs = []
+        try:
+            with neo4j.driver.session() as session:
+                result = session.run(query, limit=limit)
+                for record in result:
+                    logs.append({
+                        "agent":      record["agent"],
+                        "mcp_server": record["mcp_server"],
+                        "tool":       record["tool"],
+                        "status":     record["status"] or "SUCCESS",
+                        "timestamp":  record["timestamp"],
+                    })
+        except Exception as e:
+            print(f"[ExecutionLogs] Failed to fetch logs: {e}")
+        return logs
+
 
 neo4j_service = Neo4jService()

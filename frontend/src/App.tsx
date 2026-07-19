@@ -10,7 +10,10 @@ import {
   CheckCircle,
   Terminal,
   RefreshCw,
-  ArrowLeft
+  ArrowLeft,
+  History,
+  Clock,
+  Filter
 } from 'lucide-react'
 
 const API_BASE = '/api'
@@ -19,7 +22,7 @@ declare const vis: any;
 
 export default function App() {
   const [currentView, setCurrentView] = useState<'console' | 'graph'>('console')
-  const [activeSubTab, setActiveSubTab] = useState<'compliance' | 'policy' | 'opa' | 'inventory'>('compliance')
+  const [activeSubTab, setActiveSubTab] = useState<'compliance' | 'policy' | 'opa' | 'inventory' | 'logs'>('compliance')
   const [serverInventory, setServerInventory] = useState<any[]>([])
   const [expandedServer, setExpandedServer] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -37,6 +40,11 @@ export default function App() {
   const [executionOutput, setExecutionOutput] = useState('')
   const [executing, setExecuting] = useState(false)
   const [isBlocked, setIsBlocked] = useState(false)
+
+  // Execution logs state
+  const [executionLogs, setExecutionLogs] = useState<any[]>([])
+  const [logsFilter, setLogsFilter] = useState<'all' | 'SUCCESS' | 'BLOCKED' | 'FAILED'>('all')
+  const [loadingLogs, setLoadingLogs] = useState(false)
 
   // Compliance query states
   const [orphanAgents, setOrphanAgents] = useState<string[]>([])
@@ -106,6 +114,21 @@ export default function App() {
       }
     } catch (e) {
       console.error(e)
+    }
+  }
+
+  const fetchExecutionLogs = async () => {
+    setLoadingLogs(true)
+    try {
+      const res = await fetch(`${API_BASE}/governance/execution-logs?limit=100`)
+      if (res.ok) {
+        const data = await res.json()
+        setExecutionLogs(data || [])
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoadingLogs(false)
     }
   }
 
@@ -517,61 +540,57 @@ export default function App() {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '16px 32px',
+        padding: '14px 28px',
         borderBottom: '1px solid var(--border-color)',
-        background: 'var(--bg-secondary)',
+        background: 'rgba(13,15,16,0.95)',
+        backdropFilter: 'blur(20px)',
         position: 'sticky',
         top: 0,
         zIndex: 100
       }}>
+        {/* Logo + Status */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{
             background: 'linear-gradient(135deg, #ff9f43 0%, #e67e22 100%)',
             padding: '8px',
-            borderRadius: '8px',
-            boxShadow: '0 0 15px rgba(245, 124, 0, 0.3)'
+            borderRadius: '10px',
+            boxShadow: '0 0 20px rgba(255,159,67,0.4)'
           }}>
-            <Shield size={24} color="#121314" />
+            <Shield size={22} color="#0d0f10" />
           </div>
           <div>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent-orange)' }}>
+            <h1 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--accent-orange)', lineHeight: 1.1 }} className="glow-text">
               GodsEye
             </h1>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>AI Agent Gatekeeper & Threat Scanner</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+              <div className="pulse-dot" />
+              <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>AI Agent Gatekeeper &amp; Threat Scanner</p>
+            </div>
           </div>
         </div>
 
         {/* View Selection */}
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button 
+        <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.03)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+          <button
             onClick={() => setCurrentView('console')}
             style={{
-              background: currentView === 'console' ? 'rgba(245, 124, 0, 0.12)' : 'none',
-              border: currentView === 'console' ? '1px solid var(--accent-orange)' : '1px solid transparent',
+              background: currentView === 'console' ? 'rgba(255,159,67,0.15)' : 'none',
+              border: currentView === 'console' ? '1px solid rgba(255,159,67,0.3)' : '1px solid transparent',
               color: currentView === 'console' ? 'var(--accent-orange)' : 'var(--text-secondary)',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              transition: 'var(--transition-smooth)'
+              padding: '7px 16px', borderRadius: '7px', fontWeight: 600,
+              fontSize: '0.82rem', cursor: 'pointer', transition: 'var(--transition-smooth)'
             }}
           >
             Agent Console
           </button>
-          
-          <button 
+          <button
             onClick={() => setCurrentView('graph')}
             style={{
-              background: currentView === 'graph' ? 'rgba(245, 124, 0, 0.12)' : 'none',
-              border: currentView === 'graph' ? '1px solid var(--accent-orange)' : '1px solid transparent',
+              background: currentView === 'graph' ? 'rgba(255,159,67,0.15)' : 'none',
+              border: currentView === 'graph' ? '1px solid rgba(255,159,67,0.3)' : '1px solid transparent',
               color: currentView === 'graph' ? 'var(--accent-orange)' : 'var(--text-secondary)',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              transition: 'var(--transition-smooth)'
+              padding: '7px 16px', borderRadius: '7px', fontWeight: 600,
+              fontSize: '0.82rem', cursor: 'pointer', transition: 'var(--transition-smooth)'
             }}
           >
             Governance Graph
@@ -579,47 +598,24 @@ export default function App() {
         </div>
 
         {/* Control Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button 
-            onClick={triggerBootstrap} 
-            disabled={loading}
-            style={{
-              background: 'rgba(255, 255, 255, 0.03)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border-color)',
-              padding: '8px 14px',
-              borderRadius: '6px',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            onClick={() => { setCurrentView('console'); setActiveSubTab('logs'); fetchExecutionLogs(); }}
+            className="btn-ghost"
+            title="Execution History"
           >
-            <RefreshCw size={12} />
+            <History size={14} />
+            Logs
+          </button>
+
+          <button onClick={triggerBootstrap} disabled={loading} className="btn-ghost">
+            <RefreshCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
             Discover Agents
           </button>
 
-          <button 
-            onClick={triggerComplianceScan} 
-            disabled={loading}
-            style={{
-              background: 'linear-gradient(135deg, #ff9f43 0%, #e67e22 100%)',
-              color: '#121314',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            <Activity size={12} />
-            Scan Network
+          <button onClick={triggerComplianceScan} disabled={loading} className="btn-primary">
+            <Activity size={13} />
+            {loading ? 'Scanning…' : 'Scan Network'}
           </button>
         </div>
       </header>
@@ -763,96 +759,131 @@ export default function App() {
               </div>
 
               {executionOutput && (
-                <pre style={{
+                <div style={{
                   margin: 0,
                   padding: '16px',
-                  backgroundColor: isBlocked ? 'rgba(255, 71, 87, 0.08)' : '#121314',
-                  border: `1px solid ${isBlocked ? '#ff4757' : 'var(--border-color)'}`,
-                  borderRadius: '6px',
-                  borderLeft: isBlocked ? '4px solid #ff4757' : '1px solid var(--border-color)',
-                  color: isBlocked ? '#ff6b81' : '#e0e2e5',
-                  fontSize: '0.85rem',
-                  fontFamily: 'monospace',
-                  overflowX: 'auto',
-                  maxHeight: '260px',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word'
+                  backgroundColor: isBlocked ? 'rgba(255,71,87,0.07)' : 'rgba(0,0,0,0.5)',
+                  border: `1px solid ${isBlocked ? 'rgba(255,71,87,0.4)' : 'rgba(255,255,255,0.06)'}`,
+                  borderRadius: '10px',
+                  borderLeft: isBlocked ? '3px solid #ff4757' : '3px solid var(--accent-green)',
+                  maxHeight: '280px',
+                  overflowY: 'auto'
                 }}>
-                  {isBlocked && <span style={{ color: '#ff4757', fontWeight: 700, display: 'block', marginBottom: '8px' }}>⛔ POLICY VIOLATION — EXECUTION BLOCKED</span>}
-                  <code>{executionOutput}</code>
-                </pre>
+                  {isBlocked && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ff4757', fontWeight: 700, fontSize: '0.82rem', marginBottom: '10px' }}>
+                      <AlertTriangle size={14} /> POLICY VIOLATION — EXECUTION BLOCKED
+                    </div>
+                  )}
+                  <pre className="terminal-output" style={{ margin: 0 }}>{executionOutput}</pre>
+                </div>
               )}
             </section>
 
             {/* Sub-navigation tabs */}
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', gap: '8px' }}>
-              <button 
-                onClick={() => setActiveSubTab('compliance')} 
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: '10px 16px',
-                  color: activeSubTab === 'compliance' ? 'var(--accent-orange)' : 'var(--text-secondary)',
-                  borderBottom: activeSubTab === 'compliance' ? '2px solid var(--accent-orange)' : 'none',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer'
-                }}
-              >
-                Ecosystem Auditing
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', gap: '4px', overflowX: 'auto' }}>
+              <button className={`subtab-btn ${activeSubTab === 'compliance' ? 'active' : ''}`}
+                onClick={() => setActiveSubTab('compliance')}>
+                <Network size={13} style={{ display: 'inline', marginRight: 5 }} />Ecosystem Auditing
               </button>
-              <button 
-                onClick={() => setActiveSubTab('policy')} 
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: '10px 16px',
-                  color: activeSubTab === 'policy' ? 'var(--accent-orange)' : 'var(--text-secondary)',
-                  borderBottom: activeSubTab === 'policy' ? '2px solid var(--accent-orange)' : 'none',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer'
-                }}
-              >
-                Ingest Policy Rules
+              <button className={`subtab-btn ${activeSubTab === 'policy' ? 'active' : ''}`}
+                onClick={() => setActiveSubTab('policy')}>
+                <Database size={13} style={{ display: 'inline', marginRight: 5 }} />Ingest Policy Rules
               </button>
-              <button 
-                onClick={() => {
-                  setActiveSubTab('opa');
-                  fetchOpaPolicy();
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: '10px 16px',
-                  color: activeSubTab === 'opa' ? 'var(--accent-orange)' : 'var(--text-secondary)',
-                  borderBottom: activeSubTab === 'opa' ? '2px solid var(--accent-orange)' : 'none',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer'
-                }}
-              >
-                OPA Policy Generator
+              <button className={`subtab-btn ${activeSubTab === 'opa' ? 'active' : ''}`}
+                onClick={() => { setActiveSubTab('opa'); fetchOpaPolicy(); }}>
+                <Shield size={13} style={{ display: 'inline', marginRight: 5 }} />OPA Policy Generator
               </button>
-              <button 
-                onClick={() => {
-                  setActiveSubTab('inventory');
-                  fetchServerInventory();
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: '10px 16px',
-                  color: activeSubTab === 'inventory' ? 'var(--accent-orange)' : 'var(--text-secondary)',
-                  borderBottom: activeSubTab === 'inventory' ? '2px solid var(--accent-orange)' : 'none',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer'
-                }}
-              >
-                🗄️ Server Inventory
+              <button className={`subtab-btn ${activeSubTab === 'inventory' ? 'active' : ''}`}
+                onClick={() => { setActiveSubTab('inventory'); fetchServerInventory(); }}>
+                <Cpu size={13} style={{ display: 'inline', marginRight: 5 }} />Server Inventory
+              </button>
+              <button className={`subtab-btn ${activeSubTab === 'logs' ? 'active' : ''}`}
+                onClick={() => { setActiveSubTab('logs'); fetchExecutionLogs(); }}>
+                <History size={13} style={{ display: 'inline', marginRight: 5 }} />Execution Logs
               </button>
             </div>
+
+            {/* ── LOGS PANEL ─────────────────────────────────────────── */}
+            {activeSubTab === 'logs' && (
+              <div className="fade-up" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h5 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <History size={16} color="var(--accent-orange)" /> Execution History
+                    </h5>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '3px' }}>All tool call events stored in the governance graph.</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <Filter size={13} color="var(--text-muted)" />
+                    {(['all', 'SUCCESS', 'BLOCKED', 'FAILED'] as const).map(f => (
+                      <button key={f} onClick={() => setLogsFilter(f)}
+                        style={{
+                          padding: '4px 10px', borderRadius: '99px', fontSize: '0.72rem', fontWeight: 600,
+                          cursor: 'pointer', border: '1px solid',
+                          background: logsFilter === f ? 'var(--accent-orange-dim)' : 'transparent',
+                          borderColor: logsFilter === f ? 'var(--accent-orange)' : 'var(--border-color)',
+                          color: logsFilter === f ? 'var(--accent-orange)' : 'var(--text-secondary)',
+                          transition: 'var(--transition-smooth)'
+                        }}>{f === 'all' ? 'All' : f}</button>
+                    ))}
+                    <button className="btn-ghost" onClick={fetchExecutionLogs} disabled={loadingLogs}
+                      style={{ padding: '5px 12px', fontSize: '0.75rem' }}>
+                      <RefreshCw size={12} style={{ animation: loadingLogs ? 'spin 1s linear infinite' : 'none' }} />
+                      Refresh
+                    </button>
+                  </div>
+                </div>
+
+                <div className="gradient-border" style={{ overflow: 'hidden', padding: 0 }}>
+                  {loadingLogs ? (
+                    <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                      <RefreshCw size={18} style={{ animation: 'spin 1s linear infinite', marginBottom: 8 }} /><br />Loading execution logs…
+                    </div>
+                  ) : executionLogs.filter(l => logsFilter === 'all' || l.status === logsFilter).length === 0 ? (
+                    <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                      <Clock size={28} style={{ marginBottom: 10, opacity: 0.4 }} /><br />
+                      No execution logs found. Run an agent task to start recording history.
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto', maxHeight: '420px', overflowY: 'auto' }}>
+                      <table className="log-table">
+                        <thead>
+                          <tr>
+                            <th>Time</th>
+                            <th>Agent</th>
+                            <th>MCP Server</th>
+                            <th>Tool</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {executionLogs
+                            .filter(l => logsFilter === 'all' || l.status === logsFilter)
+                            .map((log, i) => (
+                              <tr key={i}>
+                                <td className="ts-cell">
+                                  {log.timestamp ? log.timestamp.replace('T', ' ').substring(0, 19) : '—'}
+                                </td>
+                                <td style={{ color: 'var(--accent-orange)' }}>{log.agent || '—'}</td>
+                                <td>{log.mcp_server || '—'}</td>
+                                <td style={{ color: 'var(--accent-blue)' }}>{log.tool || '—'}</td>
+                                <td>
+                                  <span className={`badge badge-${
+                                    log.status === 'SUCCESS' ? 'success' :
+                                    log.status === 'BLOCKED' ? 'blocked' : 'failed'
+                                  }`}>
+                                    {log.status === 'SUCCESS' ? '✓' : '⛔'} {log.status}
+                                  </span>
+                                </td>
+                              </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Server Inventory view */}
             {activeSubTab === 'inventory' && (
@@ -986,83 +1017,93 @@ export default function App() {
                   
                   {riskCards.length === 0 ? (
                     <div className="gradient-border" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                      No risk cards generated yet. Click **Scan Network** to audit servers, classify risks, and retrieve active findings.
+                      No risk cards generated yet. Click <strong style={{ color: 'var(--accent-orange)' }}>Scan Network</strong> to audit servers, classify risks, and retrieve active findings.
                     </div>
                   ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-                      {riskCards.map((card, i) => (
-                        <div key={i} className="gradient-border" style={{
-                          padding: '20px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '14px',
-                          borderLeft: card.level === 'HIGH' ? '4px solid var(--accent-red)' : '4px solid var(--accent-green)',
-                          background: 'rgba(255, 255, 255, 0.01)'
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                              <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                                {card.server}
-                              </h4>
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                                Owner: {card.owner}
-                              </span>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+                      {riskCards.map((card, i) => {
+                        const isHigh = card.level === 'HIGH'
+                        const isMed  = card.level === 'MEDIUM'
+                        const barClass = isHigh ? 'risk-bar-high' : isMed ? 'risk-bar-medium' : 'risk-bar-low'
+                        const score = typeof card.score === 'number' ? card.score : parseInt(card.score) || 0
+                        const accentColor = isHigh ? 'var(--accent-red)' : isMed ? 'var(--accent-orange)' : 'var(--accent-green)'
+                        return (
+                          <div key={i} className="gradient-border" style={{
+                            padding: '20px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '12px',
+                            borderLeft: `3px solid ${accentColor}`,
+                          }}>
+                            {/* Card header */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <div>
+                                <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                                  {card.server}
+                                </h4>
+                                <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
+                                  Owner: {card.owner}
+                                </span>
+                              </div>
+                              <div style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                minWidth: '48px', height: '48px', borderRadius: '10px',
+                                background: `${accentColor}18`,
+                                border: `1px solid ${accentColor}44`,
+                                flexDirection: 'column', gap: '1px'
+                              }}>
+                                <span style={{ fontWeight: 800, fontSize: '1rem', color: accentColor, lineHeight: 1 }}>{score}</span>
+                                <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>/100</span>
+                              </div>
                             </div>
-                            <div style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              width: '40px',
-                              height: '40px',
-                              borderRadius: '50%',
-                              backgroundColor: card.level === 'HIGH' ? 'rgba(255, 71, 87, 0.15)' : 'rgba(46, 213, 115, 0.15)',
-                              color: card.level === 'HIGH' ? 'var(--accent-red)' : 'var(--accent-green)',
-                              fontWeight: 800,
-                              fontSize: '0.9rem',
-                              border: card.level === 'HIGH' ? '1px solid rgba(255, 71, 87, 0.3)' : '1px solid rgba(46, 213, 115, 0.3)'
-                            }}>
-                              {card.score}
-                            </div>
-                          </div>
-                          
-                          <div>
-                            <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700 }}>
-                              Threat Analysis (Why it is risky):
-                            </span>
-                            {card.findings.length === 0 ? (
-                              <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                No vulnerabilities found. Server is compliant.
-                              </p>
-                            ) : (
-                              <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px', fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                {card.findings.map((f: string, idx: number) => (
-                                  <li key={idx}>{f}</li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
 
-                          <div>
-                            <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700 }}>
-                              Remediation Steps:
-                            </span>
-                            {card.recommendations.length === 0 ? (
-                              <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                None. Posture is secure.
-                              </p>
-                            ) : (
-                              <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px', fontSize: '0.75rem', color: 'var(--accent-green)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                {card.recommendations.map((rec: string, idx: number) => (
-                                  <li key={idx}>{rec}</li>
-                                ))}
-                              </ul>
-                            )}
+                            {/* Animated risk bar */}
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Risk Score</span>
+                                <span className={`badge badge-${card.level.toLowerCase()}`} style={{ fontSize: '0.6rem', padding: '2px 7px' }}>{card.level}</span>
+                              </div>
+                              <div className="risk-bar-track">
+                                <div className={`risk-bar-fill ${barClass}`} style={{ width: `${Math.min(score, 100)}%` }} />
+                              </div>
+                            </div>
+
+                            <div>
+                              <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700, display: 'block', marginBottom: '5px' }}>
+                                Threat Findings:
+                              </span>
+                              {card.findings.length === 0 ? (
+                                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>No vulnerabilities found. Server is compliant.</p>
+                              ) : (
+                                <ul style={{ margin: 0, paddingLeft: '14px', fontSize: '0.74rem', color: 'rgba(255,255,255,0.65)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  {card.findings.map((f: string, idx: number) => (
+                                    <li key={idx}>{f}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+
+                            <div>
+                              <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700, display: 'block', marginBottom: '5px' }}>
+                                Remediation:
+                              </span>
+                              {card.recommendations.length === 0 ? (
+                                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>None. Posture is secure.</p>
+                              ) : (
+                                <ul style={{ margin: 0, paddingLeft: '14px', fontSize: '0.74rem', color: 'var(--accent-green)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  {card.recommendations.map((rec: string, idx: number) => (
+                                    <li key={idx}>{rec}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>
+
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                   

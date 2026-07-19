@@ -682,3 +682,13 @@ def get_server_inventory():
                 "tools":         tools,
             })
         return servers
+
+
+@router.get("/execution-logs")
+def get_execution_logs(limit: int = Query(default=100, ge=1, le=500)):
+    """
+    Returns the last N execution log entries (tool calls) from the governance graph,
+    ordered by most recent timestamp first.
+    """
+    logs = neo4j_service.get_execution_logs(limit=limit)
+    return logs
