@@ -1,4 +1,4 @@
-﻿# GodsEye 👁️
+# GodsEye 👁️
 
 **AI Agent Gatekeeper & MCP Server Risk Scanner**
 
@@ -23,12 +23,14 @@ GodsEye fixes this with two complementary modules:
 
 - 🔍 **MCP Server Inventory** — Automatically discovers all MCP servers connected to your agent fleet
 - 🛡️ **Risk Cards per Server** — Auth status, TLS, public exposure, tool categories, risk score, and remediation steps
-- 🕸️ **Governance Graph** — Interactive vis.js graph of your entire AI ecosystem in Neo4j
+- 🕸️ **Governance Graph** — Interactive vis.js graph of your entire AI ecosystem in Neo4j with **dynamic SVG vector icons** (User, Agent, Proxy, Server, Tool) and active execution path halos
 - 💥 **Blast Radius Calculator** — Given a compromised tool, find every user and agent potentially affected
 - 🤖 **OPA Policy Generator** — Auto-generates Rego stubs that block access to HIGH risk MCP servers
 - 🔒 **GodsEye Proxy Layer** — stdio interceptor sitting between agents and MCP servers; logs every tool call and enforces policy
+- 📊 **Persistent Audit Logging** — Logs successful, failed, and blocked execution history in Neo4j (fully preserved across network clears)
+- 👁️ **Visual Trajectory Auditor** — Interactive timeline path modal rendering the exact user-to-tool trace trajectory on clicking any log row
 - 🧹 **Orphan Agent Detection** — Finds agents with no policy node attached
-- 📊 **Live Dashboard** — React/Vite frontend showing risk posture, graph, blast radius, and OPA rules
+- 🎨 **Live Dashboard** — React/Vite frontend featuring full-screen visualizer canvas and glassmorphic overlay control panels
 
 ---
 
