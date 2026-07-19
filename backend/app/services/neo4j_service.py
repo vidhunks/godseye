@@ -245,18 +245,37 @@ class Neo4jService:
         server: str,
         tool: str,
         status: str = "SUCCESS",
+        agent: str = None,
     ):
-
-        query = """
+        # 1. Update the active topology relationship for visualization
+        query_topology = """
         MERGE (m:MCPServer {uri:$server})
         MERGE (t:Tool {name:$tool})
         MERGE (m)-[c:CALLS]->(t)
         SET c.status = $status, c.timestamp = datetime()
         """
+        
+        # 2. Create a persistent ExecutionLog node that is preserved on scan reset
+        query_log = """
+        CREATE (l:ExecutionLog {
+            agent: $agent,
+            mcp_server: $server,
+            tool: $tool,
+            status: $status,
+            timestamp: datetime()
+        })
+        """
 
         with neo4j.driver.session() as session:
             session.run(
-                query,
+                query_topology,
+                server=server,
+                tool=tool,
+                status=status,
+            )
+            session.run(
+                query_log,
+                agent=agent or "Unknown Agent",
                 server=server,
                 tool=tool,
                 status=status,
@@ -264,19 +283,18 @@ class Neo4jService:
 
     def get_execution_logs(self, limit: int = 100):
         """
-        Returns the last N execution log entries stored as CALLS relationships
+        Returns the last N execution log entries stored as persistent ExecutionLog nodes
         in Neo4j, ordered by most recent first.
         """
         query = """
-        MATCH (a:Agent)-[:USES]->(p:Proxy)-[:CONNECTS_TO]->(m:MCPServer)-[c:CALLS]->(t:Tool)
-        WHERE c.timestamp IS NOT NULL
+        MATCH (l:ExecutionLog)
         RETURN
-            a.name AS agent,
-            m.name AS mcp_server,
-            t.name AS tool,
-            c.status AS status,
-            toString(c.timestamp) AS timestamp
-        ORDER BY c.timestamp DESC
+            l.agent AS agent,
+            l.mcp_server AS mcp_server,
+            l.tool AS tool,
+            l.status AS status,
+            toString(l.timestamp) AS timestamp
+        ORDER BY l.timestamp DESC
         LIMIT $limit
         """
         logs = []

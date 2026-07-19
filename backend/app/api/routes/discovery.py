@@ -73,10 +73,11 @@ def discover_agents():
 @router.post("/bootstrap")
 def bootstrap():
     """
-    Clears the graph database to prepare for a fresh network scan.
+    Clears the static topology of the graph database to prepare for a fresh network scan,
+    while preserving execution history logs.
     """
     with neo4j.driver.session() as session:
-        session.run("MATCH (n) DETACH DELETE n")
+        session.run("MATCH (n) WHERE NOT n:ExecutionLog DETACH DELETE n")
 
     return {
         "status": "success",
@@ -91,9 +92,9 @@ def scan_all():
     Performs a bulk network scan. Rebuilds the entire topology in Neo4j dynamically,
     evaluates risk postures for all servers, and writes risk assessment parameters.
     """
-    # 1. Clear database to ensure graph is ONLY generated during scan
+    # 1. Clear static topology to ensure graph is ONLY generated during scan, keeping history logs
     with neo4j.driver.session() as session:
-        session.run("MATCH (n) DETACH DELETE n")
+        session.run("MATCH (n) WHERE NOT n:ExecutionLog DETACH DELETE n")
 
     brain_config_path = "../sample_agents/brain_agent/agent_config.json"
     with open(brain_config_path, "r", encoding="utf-8") as f:
