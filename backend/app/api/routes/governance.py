@@ -406,6 +406,21 @@ def run_agent(payload: RunAgentPayload):
         print(f"Risk pre-check DB query failed (non-blocking): {e}")
 
     if high_risk_servers:
+        # Manually log BLOCKED execution events in Neo4j for each blocked server
+        agent_mappings = {
+            "Finance Agent": "read_financial_report",
+            "HR Agent": "read_employee_record",
+            "DevOps Agent": "execute_shell",
+        }
+        for s in high_risk_servers:
+            srv = s["server"]
+            tl = agent_mappings.get(agent_name, "execute")
+            try:
+                neo4j_service.create_usage(agent_name, srv)
+                neo4j_service.create_tool_call(srv, tl, status="BLOCKED")
+            except Exception as ex:
+                print(f"Failed to log blocked execution: {ex}")
+
         return {
             "status": "blocked",
             "stdout": (
@@ -451,6 +466,21 @@ def run_agent(payload: RunAgentPayload):
             timeout=15,
         )
 
+        # Log failed execution event to Neo4j if agent command returns non-zero code
+        if proc.returncode != 0:
+            agent_mappings = {
+                "Finance Agent": ("Finance MCP", "read_financial_report"),
+                "HR Agent": ("HR MCP", "read_employee_record"),
+                "DevOps Agent": ("DevOps MCP", "execute_shell"),
+            }
+            if agent_name in agent_mappings:
+                srv, tl = agent_mappings[agent_name]
+                try:
+                    neo4j_service.create_usage(agent_name, srv)
+                    neo4j_service.create_tool_call(srv, tl, status="FAILED")
+                except Exception as ex:
+                    print(f"Failed to log failed execution: {ex}")
+
         return {
             "status": (
                 "success"
@@ -460,6 +490,7 @@ def run_agent(payload: RunAgentPayload):
             "stdout": stdout,
             "stderr": stderr,
         }
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
